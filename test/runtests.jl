@@ -36,6 +36,7 @@ test_suites = [
     ("Discrete wavelets", ["dwt.jl"]),
     ("Cohen class and adaptive decompositions", ["adaptive.jl"]),
     ("audioFlux spectral descriptors", ["spectral_af.jl"]),
+    ("audioFlux features", ["af_features.jl"]),
 ]
 
 @testset "Audio911.jl" begin

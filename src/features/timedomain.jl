@@ -118,12 +118,16 @@ end
 Zero-crossing rate of every frame: number of sign changes divided by the
 frame length (librosa `zero_crossing_rate`, MATLAB `zerocrossrate`).
 Samples with `|x| ≤ threshold` count as zero. `rate=false` returns the
-crossing counts instead.
+crossing counts instead; `windowed=true` counts on the windowed frames and
+`strict=true` counts only strict sign changes `x[i] x[i-1] < 0`, so exact
+zeros never cross (both are audioFlux `Temporal`'s rules).
 """
-function Zcr(frames::Frames{T}; threshold::Real=1e-10, rate::Bool=true) where T
+function Zcr(frames::Frames{T}; threshold::Real=1e-10, rate::Bool=true, windowed::Bool=false,
+             strict::Bool=false) where T
     th = T(threshold)
     n  = T(get_size(frames))
-    v  = _map_frames(x -> rate ? T(_zcr(x, th)) / n : T(_zcr(x, th)), frames)
+    count_zc(x) = strict ? count(i -> x[i] * x[i - 1] < 0, 2:length(x)) : _zcr(x, th)
+    v  = _map_frames(x -> rate ? T(count_zc(x)) / n : T(count_zc(x)), frames; windowed)
     return Zcr{typeof(frames),T}(v, frames, ZcrSetup(get_sr(frames), Float64(threshold), rate))
 end
 
@@ -306,13 +310,26 @@ end
 #                                harmonic ratio                                #
 # ---------------------------------------------------------------------------- #
 @descriptor HarmonicRatio HarmonicRatioSetup """
-    HarmonicRatio(frames::Frames; range=(50, 400)) -> HarmonicRatio
+    HarmonicRatio(frames::Frames; range=(50, 400), method=:matlab) -> HarmonicRatio
 
 Maximum of the normalised auto-correlation of every frame over the lags of
 `range` (MATLAB `harmonicRatio`); 1 for a perfectly periodic frame, near 0
 for noise.
+
+`method=:audioflux` computes audioFlux's `HarmonicRatio` instead: the
+windowed frame is zero-padded to twice its length for the auto-correlation,
+the lag search starts at the first zero crossing of the auto-correlation
+(kept from the previous frame when there is none) and runs up to
+`sr / fmin` (`fmin` defaults to `range[1]`), the lag energy is the cumulative energy of the frame
+(audioFlux's index, one sample shorter than the overlap) and the maximum is
+refined by quadratic interpolation. Build the frames with audioFlux's
+Hamming window to match it.
 """
-function HarmonicRatio(frames::Frames{T}; range::FreqRange=(50, 400)) where T
+function HarmonicRatio(frames::Frames{T}; range::FreqRange=(50, 400), method::Symbol=:matlab,
+                       fmin::Real=get_low(range)) where T
+    method in (:matlab, :audioflux) || throw(ArgumentError("method must be :matlab or :audioflux, got :$method"))
+    method === :audioflux && return HarmonicRatio{typeof(frames),T}(_hr_audioflux(frames, fmin),
+                                                                     frames, HarmonicRatioSetup(get_sr(frames), range))
     sr = get_sr(frames)
     v  = _map_frames(frames) do x
         n = length(x)
@@ -330,4 +347,47 @@ function HarmonicRatio(frames::Frames{T}; range::FreqRange=(50, 400)) where T
         return best
     end
     return HarmonicRatio{typeof(frames),T}(v, frames, HarmonicRatioSetup(sr, range))
+end
+
+# audioFlux's harmonic ratio (src/mir/harmonicRatio_algorithm.c)
+function _hr_audioflux(frames::Frames{T}, fmin::Real) where T
+    sr = get_sr(frames)
+    W  = get_winsize(frames)
+    M  = 2W
+    maxL = min(floor(Int, sr / fmin), W - 1)
+    w  = get_window(frames)
+    plan = plan_rfft(zeros(T, M))
+    buf  = zeros(T, M)
+    X    = Vector{Complex{T}}(undef, M ÷ 2 + 1)
+    raw  = Vector{T}(undef, W)
+    out  = Vector{T}(undef, length(frames))
+    minidx = 0                                    # kept across frames, as in audioFlux
+    for j in 1:length(frames)
+        frame!(raw, frames, j)
+        @inbounds for i in 1:W; buf[i] = raw[i] * w[i]; end
+        @inbounds fill!(view(buf, W+1:M), zero(T))
+        mul!(X, plan, buf)
+        r  = irfft(abs2.(X), M)                   # r[k+1]: lag k
+        cs = cumsum(view(buf, 1:W) .^ 2)
+        for k in 2:maxL
+            if (r[k + 1] ≥ 0 && r[k] ≤ 0) || (r[k + 1] ≤ 0 && r[k] ≥ 0)
+                minidx = k - 1
+                break
+            end
+        end
+        n = maxL - minidx - 1
+        if n ≤ 0
+            out[j] = zero(T); continue
+        end
+        g = T[r[k + 1] / sqrt(r[1] * cs[W - 1 - k] + T(1e-16)) for k in minidx+1:maxL-1]
+        i = argmax(g)
+        if i == 1 || i == n
+            out[j] = g[i]
+        else
+            v1, v2, v3 = g[i - 1], g[i], g[i + 1]
+            p = (v3 - v1) / (2 * (2v2 - v3 - v1) + T(1e-16))
+            out[j] = v2 - T(0.25) * (v1 - v3) * p
+        end
+    end
+    return out
 end

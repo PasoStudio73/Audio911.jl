@@ -173,7 +173,12 @@ Configuration values are the functions themselves and are compared by
 identity: window `hamming`/`hanning`/`povey`/..., spectrum
 `power`/`magnitude`, scale `htk`/`slaney`/`bark`, filterbank normalisation
 `area`/`bandwidth`/`none_norm`, rectification `mlog`/`nlog`/`cubic_root`/`db`.
-The only Symbol-valued option is `domain=:linear|:warped` on filterbank design.
+Symbols are kept for switches between variants of one algorithm rather
+than interchangeable components: `domain=:linear|:warped` on filterbank
+design, `energy_mode` on the cepstra, and the variant switches of the
+audioFlux ports (`mode`, `accumulate`, `method`, `data`). Discrete wavelets
+are named by string (`"db4"`, `"bior3.5"`), as in every wavelet library,
+because there are 51 of them.
 
 ## What stays fixed
 

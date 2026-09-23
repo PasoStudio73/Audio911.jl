@@ -236,3 +236,52 @@ Harmonic and percussive components side by side.
         get_percussive(h)
     end
 end
+
+"""
+    plot(d::Deconv)
+
+Timbre and pitch parts of a spectral deconvolution, one heatmap each.
+"""
+@recipe function f(d::Deconv)
+    layout := (2, 1)
+    t = collect(get_times(d)); fr = collect(get_freq(d))
+    for (i, (name, M)) in enumerate((("Timbre", get_timbre(d)), ("Pitch", get_pitch(d))))
+        @series begin
+            subplot := i
+            seriestype := :heatmap
+            title --> name
+            xguide --> "Time (s)"
+            yguide --> "Bin frequency (Hz)"
+            t, fr, M
+        end
+    end
+end
+
+"""
+    plot(c::Cepstrogram)
+
+Cepstrum (against quefrency), spectral envelope and details (against
+frequency), one heatmap each.
+"""
+@recipe function f(c::Cepstrogram)
+    layout := (3, 1)
+    t = collect(get_times(c))
+    @series begin
+        subplot := 1
+        seriestype := :heatmap
+        title --> "Cepstrum"
+        xguide --> "Time (s)"
+        yguide --> "Quefrency (s)"
+        t, get_quefrency(c), get_data(c)
+    end
+    for (i, (name, M)) in enumerate((("Envelope", get_envelope(c)), ("Details", get_details(c))))
+        @series begin
+            subplot := i + 1
+            seriestype := :heatmap
+            title --> name
+            xguide --> "Time (s)"
+            yguide --> "Frequency (Hz)"
+            t, get_freq(c), M
+        end
+    end
+end

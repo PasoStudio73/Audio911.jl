@@ -93,7 +93,9 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
 - audioFlux's descriptors: energy, RMS, high-frequency content, spectral
   difference, modified Kullback-Leibler, phase and complex-domain
   deviations, broadband, novelty, energy-entropy, max/peak/mean/variance
-- `Chroma`, `Tonnetz`, `SpectralContrast`, `PolyFeatures`
+- `Chroma` (STFT or constant-Q), `Tonnetz`, `SpectralContrast`, `PolyFeatures`
+- spectral deconvolution (`Deconv`), the cepstrogram (`Cepstrogram`), the
+  energy to zero-crossing ratio (`Ezr`), `xxcc_standard`
 - `OnsetStrength`, `onset_detect`, `Tempogram`, `tempo`, `beat_track`
 - `Hpss` harmonic/percussive separation, `pcen`, `noisegate`, `SpectralGate`
 - unit conversions, dB scaling, weighting curves, synthesis, silence trimming, LPC

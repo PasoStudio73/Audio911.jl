@@ -28,3 +28,17 @@ page wire them for MATLAB, HTK, Kaldi, librosa, ETSI and
 python_speech_features.
 
 The input spectrogram is never modified (the floor is applied to a copy).
+
+## xxcc
+
+audioFlux's `xxcc` is the cepstrum of any spectrogram with `log10`
+rectification, a `1e-8` floor and the orthonormal DCT:
+`Mfcc(spec; rect=mlog, floor=1e-8)` computes it on an STFT, a CQT
+(audioFlux's `cqcc`), a mel, bark or ERB spectrogram (`mfcc`, `bfcc`,
+`gtcc`). [`xxcc_standard`](@ref) adds the log energy (replacing C0, or in
+front with `energy_mode=:prepend`) and the delta and delta-delta along the
+coefficient axis, audioFlux's `xxcc_standard` / `mfcc_standard`:
+
+```julia
+c, d1, d2 = xxcc_standard(Stft(audio; spectrum=magnitude); ncoeffs=13)
+```

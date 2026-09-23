@@ -41,3 +41,30 @@ h   = Hpss(stft; kernel=(31, 31), power=2)
 mel = MelSpec(get_harmonic(h); nbands=40)
 g   = SpectralGate(stft; threshold=-50, freqrange=(40, 120))   # gate the hum band only
 ```
+
+## audioFlux features
+
+- [`Deconv`](@ref) splits every frame of a spectrogram into a timbre
+  (formant) part and a pitch (harmonic fine structure) part by
+  deconvolution: the timbre is `real(ifft(|F|))` and the pitch
+  `real(ifft(F/|F|))` of the Fourier transform `F` of the frame's spectrum
+  ([`get_timbre`](@ref), [`get_pitch`](@ref)).
+- [`Cepstrogram`](@ref) is the real cepstrum of every frame, with the
+  log-power envelope rebuilt from the low quefrencies and the details from
+  the high ones ([`get_envelope`](@ref), [`get_details`](@ref),
+  [`get_quefrency`](@ref)).
+- [`Ezr`](@ref) is the energy to zero-crossing ratio of every windowed
+  frame; [`Zcr`](@ref) gained `windowed` and `strict` for audioFlux's
+  temporal zero-crossing rate.
+- [`HarmonicRatio`](@ref) with `method=:audioflux` is audioFlux's harmonic
+  ratio (zero-padded auto-correlation from its first zero crossing,
+  quadratic interpolation).
+
+```julia
+d  = Deconv(Stft(audio; winsize=512, winstep=256, spectrum=magnitude))
+cg = Cepstrogram(Frames(audio; winsize=512, winstep=256, type=rect); ncep=8)
+hr = HarmonicRatio(Frames(audio; winsize=4096, winstep=1024, type=hamming); method=:audioflux, fmin=32.703)
+plot(d); plot(cg)
+```
+
+All four agree with audioFlux (`test/af_features.jl`).

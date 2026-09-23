@@ -33,7 +33,8 @@ features in `src/features/` consume the interface, never a concrete type.
   `get_frontend`) and inherits the time grid from its `Frames`.
 - Options are functions compared by identity (`hamming`, `power`, `htk`,
   `bandwidth`, `mlog`, `dct_ortho`, `raw_energy`); the Symbol exceptions are
-  `domain=:linear|:warped` and `energy_mode=:replace|:append`.
+  `domain=:linear|:warped`, `energy_mode=:replace|:append|:prepend` and the
+  mode switches of the audioFlux ports (`mode`, `accumulate`, `method`).
 - Element type flows from `load(...; format=Float32|Float64)`; nothing may
   promote it (`test/pipeline.jl` "Float32 stays Float32").
 - Audio loading is internal (`src/audio/`, libsndfile_jll + mpg123_jll).

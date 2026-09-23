@@ -225,8 +225,8 @@ function _cepstrum(
     first + ncoeffs ≤ nb || throw(ArgumentError(
         "first + ncoeffs = $(first + ncoeffs) exceeds the number of bands ($nb)"))
     lifter ≥ 0  || throw(ArgumentError("lifter must be ≥ 0, got $lifter"))
-    energy_mode in (:replace, :append) || throw(ArgumentError(
-        "energy_mode must be :replace or :append, got $energy_mode"))
+    energy_mode in (:replace, :append, :prepend) || throw(ArgumentError(
+        "energy_mode must be :replace, :append or :prepend, got $energy_mode"))
     (isnothing(energy) || energy_mode != :replace || first == 0) || throw(ArgumentError(
         "energy_mode=:replace needs first=0 so that C0 is present"))
 
@@ -265,8 +265,10 @@ function _cepstrum(
         le = T[log(max(T(v), efl)) for v in e]
         if energy_mode == :replace
             C[1, :] .= le
-        else
+        elseif energy_mode == :append
             C = vcat(C, permutedims(le))
+        else
+            C = vcat(permutedims(le), C)
         end
     end
 
@@ -303,7 +305,8 @@ combined with a log-energy term.
 - `energy=nothing`: `raw_energy` or `spectrum_energy` to add a natural-log
   energy term
 - `energy_mode::Symbol=:replace`: `:replace` C0 with the log energy (Kaldi,
-  python_speech_features) or `:append` it as a last coefficient (HTK `_E`)
+  python_speech_features), `:append` it as a last coefficient (HTK `_E`) or
+  `:prepend` it as a first one (audioFlux `CepstralEnergyType.APPEND`)
 - `energy_floor::Real=eps(T)`: floor applied to the energy before its log
   (`exp(-50)` in ETSI)
 - `top_db::Real`: clip the rectified bands to `max - top_db` (librosa's

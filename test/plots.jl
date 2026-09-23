@@ -94,6 +94,11 @@ end
     @test recipe(Cqt(frames; nbins=60))[1].plotattributes[:yscale] == :log10
     @test !haskey(recipe(Cqt(frames; nbins=60); freq_scale=:linear)[1].plotattributes, :yscale)
     @test size(recipe(Chroma(Cqt(frames; nbins=60)))[1].args[3]) == (12, n)
+    rd = recipe(Deconv(Stft(frames; spectrum=magnitude)))
+    @test length(rd) == 2 && size(rd[1].args[3]) == (257, n)
+    rd = recipe(Cepstrogram(frames; ncep=8))
+    @test length(rd) == 3 && all(size(r.args[3]) == (257, n) for r in rd)
+    @test length(recipe(Ezr(frames))[1].args[2]) == n
     fb = cqt_chroma_fbank(Cqt(frames; nbins=60))
     @test length(recipe(fb)) == 12
 end
