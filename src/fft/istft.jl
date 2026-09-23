@@ -79,13 +79,16 @@ function istft(C::AbstractMatrix{Complex{T}}, winsize::Int, winstep::Int;
     return y
 end
 
-function istft(s::Stft{T}; method::Symbol=:wola, length::Maybe{Int}=nothing) where T
+istft(s::Stft; method::Symbol=:wola, length::Maybe{Int}=nothing) = _istft(s, get_complex(s); method, length)
+
+# invert a complex matrix `C` on the grid of `s` (a masked or modified STFT)
+function _istft(s::Stft, C::AbstractMatrix; method::Symbol, length)
     fr = get_frames(s)
     info = get_setup(fr)
     n = Base.length(get_signal(fr))
     # centred frames padded the signal by winsize ÷ 2 on both sides
     orig = info.center ? n - 2 * (info.winsize ÷ 2) : n
     len = something(length, orig)
-    return istft(get_complex(s), get_winsize(s), get_step(s); window=get_window(s), nfft=get_nfft(s),
+    return istft(C, get_winsize(s), get_step(s); window=get_window(s), nfft=get_nfft(s),
                  method, offset=get_offset(s), length=len)
 end

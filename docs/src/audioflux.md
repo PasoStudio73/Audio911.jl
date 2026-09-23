@@ -157,8 +157,8 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 | `PitchSTFT` | — | spectral-peak pitch: STFT peaks in dB with window-specific frequency correction and a harmonic vote (`trist`, ~1000 lines of undocumented heuristics). In 0.1.9 its constructor swaps the bin bounds (the range is ignored) and it misses the fundamental of a clean harmonic sweep | port (simplified): [`pitch_stft`](@ref), quadratic peak interpolation and a harmonic sieve; `trist` is not reproduced | structural (ground-truth sweep) |
 | `PitchFFP` | — | "flux fast pitch", a 3000-line undocumented tracker with correlation, cut, flag, light and temporal side outputs | out of scope (no published definition; only the C source, which is a heuristic state machine) | — |
 | `Onset(novelty_type, filter_order)` + `NoveltyParam` | [`OnsetStrength`](@ref), [`onset_detect`](@ref), [`peak_pick`](@ref) | audioFlux's envelope is the chosen spectral novelty (flux/hfc/sd/sf/mkl/pd/wpd/nwpd/cd/rcd/broadband) after an optional running maximum over `filter_order` bins, min–max normalised, then librosa's `peak_pick` with the same defaults. Audio911's envelope is librosa's dB flux | extend existing: [`Novelty`](@ref) envelope (any novelty descriptor, `filter_order`, audioFlux's min–max normalisation) and [`onset_detect`](@ref) on any one-value-per-frame descriptor. `peak_pick` now ends its windows before `n + post_max` as librosa and audioFlux do (it was one frame longer), with the defaults rounded down | fixture (the eleven envelopes, and identical onset frames) |
-| `HPSS(h_order, p_order)` (median filtering) | [`Hpss`](@ref) | same median filters (harmonic along time, percussive along frequency) with hard masks; audioFlux returns the two time-domain signals through an ISTFT, Audio911 the masked spectrograms | extend existing: `Hpss(...; power=Inf)` is the audioFlux mask; [`get_harmonic_signal`](@ref)/[`get_percussive_signal`](@ref) through `istft` | fixture |
-| HPSS by NMF (README) | — | listed in the README; the snapshot has no NMF-based HPSS (only `classic/nmf.c`) | port structurally: `Hpss(spec; method=nmf, k=...)` classifying NMF components by their spectral versus temporal continuity | structural |
+| `HPSS(h_order, p_order)` (median filtering) | [`Hpss`](@ref) | same median filters (harmonic along time, percussive along frequency) and the same squared soft masks (power 2, margin 1); audioFlux pads the median windows with zeros where Audio911 shrank them, forces the hop to `fft/4` whatever `slide_length` says, and returns the two time-domain signals through the weighted overlap-add ISTFT, Audio911 the masked spectrograms | extend existing: `Hpss(stft; kernel=(h_order, p_order), edge=:zero)`, with [`get_harmonic_signal`](@ref) and [`get_percussive_signal`](@ref) through `istft` | fixture (both signals, two window/order pairs) |
+| HPSS by NMF (README) | — | named in the `HPSS` docstring and the README, but the snapshot has no NMF-based HPSS: `HPSS` is median filtering only, and `classic/nmf.c` is a plain factorisation | out of scope (no algorithm to port; a component classification on top of [`nmf`](@ref) would be a new design, not a port) | — |
 | `Harmonic.harmonic_count(low_fre, high_fre)` | — | STFT peaks in dB filtered by height, neighbourhood and level, counted between `low` and `high` | port: [`harmonic_count`](@ref) (the three peak filters) | structural (the filter constants are undocumented; the count is checked on synthetic harmonic tones) |
 | `HarmonicRatio(low_fre)` | [`HarmonicRatio`](@ref) | audioFlux: normalised autocorrelation of the windowed frame zero-padded to twice its length, maximised from the first zero crossing of the autocorrelation (kept from the previous frame when there is none) up to `sr/low_fre`, lag energy one sample short of the overlap, quadratic interpolation; Audio911's (MATLAB) maximises over the lags of a frequency range | extend existing: `HarmonicRatio(frames; method=:audioflux, fmin)` | fixture |
 | `PitchShift(n_semitone)` | — | phase vocoder time stretch by `2^(n/12)` then resampling | port: [`pitch_shift`](@ref) | fixture |
@@ -214,11 +214,11 @@ complex-spectrum accessor and `istft`; `Reassign`; `Synsq` and `Wsst`; the
 extra wavelets and grids of `Cwt`; `dwt`/`wpt`/`swt` with the wavelet
 tables; `Wvd`, `Cwd`, `emd`, `ewt`, `Hht`; the spectral descriptors;
 `Deconv`, `Cepstrogram`, `Ezr`, `xxcc_standard`; `Novelty`, the pitch
-methods, `harmonic_count`, the `HarmonicRatio` variant, HPSS signals and NMF
-HPSS, `nmf`, `Hmm`, `viterbi`, `tune_track`; `phase_vocoder`,
+methods, `harmonic_count`, the `HarmonicRatio` variant, HPSS signals, `nmf`, `Hmm`, `viterbi`, `tune_track`; `phase_vocoder`,
 `time_stretch`, `pitch_shift`; `czt`, `hilbert`, `xcorr`, `convolve`, the
 sinc resampler, B/D weightings and the scaling utilities.
 
 Out of scope, with the reason given in the rows: the `Deep` spectrograms,
-`cqhc`, `PitchFFP`, `queue_fre*`, `is_continue` streaming, audio writing and
-the internal filter-design helpers.
+`cqhc`, `PitchFFP`, `queue_fre*`, the NMF-based HPSS named only in a
+docstring, `is_continue` streaming, audio writing and the internal
+filter-design helpers.

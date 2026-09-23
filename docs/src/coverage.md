@@ -81,7 +81,7 @@ available offline.
 
 | librosa | Audio911 | status |
 |:--------|:---------|:-------|
-| `hpss`, `harmonic`, `percussive` | [`Hpss`](@ref) on spectrograms (`decompose.hpss`); time-domain outputs need `istft` | partial |
+| `hpss`, `harmonic`, `percussive` | [`Hpss`](@ref) with [`get_harmonic_signal`](@ref), [`get_percussive_signal`](@ref) | parity with audioFlux `HPSS` (zero-padded edges) |
 | `time_stretch`, `pitch_shift` | — | not implemented |
 | `remix` | — | not implemented |
 | `trim`, `split` | [`trim_silence`](@ref), [`split_silence`](@ref) | done |

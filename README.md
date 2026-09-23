@@ -98,7 +98,8 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
   energy to zero-crossing ratio (`Ezr`), `xxcc_standard`
 - `OnsetStrength`, audioFlux's `Novelty` onset envelopes, `onset_detect`,
   `Tempogram`, `tempo`, `beat_track`
-- `Hpss` harmonic/percussive separation, `pcen`, `noisegate`, `SpectralGate`
+- `Hpss` harmonic/percussive separation (spectrograms or signals), `pcen`,
+  `noisegate`, `SpectralGate`
 - unit conversions, dB scaling, weighting curves, synthesis, silence trimming, LPC
 
 ### Extras

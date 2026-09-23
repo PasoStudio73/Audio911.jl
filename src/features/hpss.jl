@@ -46,8 +46,10 @@ _derived(s::AbstractSpectrogram, spec::Matrix, name::Symbol) =
 # ---------------------------------------------------------------------------- #
 #                                median filters                                #
 # ---------------------------------------------------------------------------- #
-# median over a centred window of `k` samples along dim 2 (frames) or dim 1 (bins)
-function _medfilt(S::AbstractMatrix{T}, k::Int, dim::Int) where T
+# median over a centred window of `k` samples along dim 2 (frames) or dim 1
+# (bins); at the edges the window shrinks (`zero_pad=false`) or the matrix is
+# padded with zeros (`zero_pad=true`, scipy `medfilt`, audioFlux)
+function _medfilt(S::AbstractMatrix{T}, k::Int, dim::Int; zero_pad::Bool=false) where T
     k ≤ 1 && return copy(S)
     nb, nf = size(S)
     h = k ÷ 2
@@ -58,6 +60,7 @@ function _medfilt(S::AbstractMatrix{T}, k::Int, dim::Int) where T
             lo, hi = max(1, j - h), min(nf, j + (k - 1 - h))
             m = hi - lo + 1
             copyto!(buf, 1, view(S, i, lo:hi), 1, m)
+            zero_pad && (fill!(view(buf, m+1:k), zero(T)); m = k)
             R[i, j] = _median!(view(buf, 1:m))
         end
     else
@@ -65,6 +68,7 @@ function _medfilt(S::AbstractMatrix{T}, k::Int, dim::Int) where T
             lo, hi = max(1, i - h), min(nb, i + (k - 1 - h))
             m = hi - lo + 1
             copyto!(buf, 1, view(S, lo:hi, j), 1, m)
+            zero_pad && (fill!(view(buf, m+1:k), zero(T)); m = k)
             R[i, j] = _median!(view(buf, 1:m))
         end
     end
@@ -134,15 +138,27 @@ get_masks(h::Hpss)      = (h.mask_h, h.mask_p)
 Base.show(io::IO, h::Hpss) = print(io, "Hpss(", h.harmonic, ", ", h.percussive, ")")
 
 """
-    Hpss(spec; kernel=(31, 31), power=2.0, margin=(1, 1)) -> Hpss
+    Hpss(spec; kernel=(31, 31), power=2.0, margin=(1, 1), edge=:shrink) -> Hpss
 
 Harmonic/percussive source separation by median filtering (Fitzgerald
-2010; librosa `decompose.hpss`). The magnitude spectrogram is median
-filtered along time (`kernel[1]` frames, harmonic) and along frequency
-(`kernel[2]` bins, percussive); Wiener-like soft masks with exponent
-`power` (`Inf` for hard masks) and separation `margin`s are applied to the
-input spectrogram. Both components keep the frequency grid and spectrum
-kind of `spec`.
+2010; librosa `decompose.hpss`, audioFlux `HPSS`). The magnitude
+spectrogram is median filtered along time (`kernel[1]` frames, harmonic)
+and along frequency (`kernel[2]` bins, percussive); Wiener-like soft masks
+with exponent `power` (`Inf` for hard masks) and separation `margin`s are
+applied to the input spectrogram. Both components keep the frequency grid
+and spectrum kind of `spec`. At the edges of the spectrogram the median
+window shrinks (`edge=:shrink`) or the spectrogram is padded with zeros
+(`edge=:zero`, audioFlux and scipy `medfilt`).
+
+On an [`Stft`](@ref), [`get_harmonic_signal`](@ref) and
+[`get_percussive_signal`](@ref) return the separated signals. audioFlux's
+`HPSS(radix2_exp=11, window_type=HAMM, h_order=21, p_order=31)` is
+
+```julia
+stft = Stft(Frames(audio; winsize=2048, winstep=512, type=hamming))
+h = Hpss(stft; kernel=(21, 31), edge=:zero)
+yh, yp = get_harmonic_signal(h), get_percussive_signal(h)
+```
 
 ```julia
 h = Hpss(stft)
@@ -151,18 +167,44 @@ onset = OnsetStrength(MelSpec(get_percussive(h)))
 ```
 """
 function Hpss(s::AbstractSpectrogram; kernel::Tuple{Int,Int}=(31, 31), power::Real=2.0,
-              margin::Union{Real,Tuple{Real,Real}}=(1, 1))
+              margin::Union{Real,Tuple{Real,Real}}=(1, 1), edge::Symbol=:shrink)
     T = eltype(s)
     mh, mp = margin isa Tuple ? (T(margin[1]), T(margin[2])) : (T(margin), T(margin))
     (mh ≥ 1 && mp ≥ 1) || throw(ArgumentError("margins must be ≥ 1"))
+    edge in (:shrink, :zero) || throw(ArgumentError("edge must be :shrink or :zero, got :$edge"))
     S = Matrix{T}(_magnitude_spec(s))
-    H = _medfilt(S, kernel[1], 2)
-    P = _medfilt(S, kernel[2], 1)
+    H = _medfilt(S, kernel[1], 2; zero_pad=edge === :zero)
+    P = _medfilt(S, kernel[2], 1; zero_pad=edge === :zero)
     maskh = _softmask(H, P .* mp, power)
     maskp = _softmask(P, H .* mh, power)
     X = get_spec(s)
     return Hpss(_derived(s, X .* maskh, :harmonic), _derived(s, X .* maskp, :percussive), maskh, maskp)
 end
+
+function _masked_signal(h::Hpss, M::AbstractMatrix; method::Symbol, length)
+    s = get_parent(h.harmonic)
+    s isa Stft || throw(ArgumentError("the separated signals need an Hpss of an Stft, got $(nameof(typeof(s)))"))
+    return _istft(s, get_complex(s) .* M; method, length)
+end
+
+"""
+    get_harmonic_signal(h::Hpss; method=:wola, length=nothing) -> Vector
+
+The harmonic signal of an [`Hpss`](@ref) of an [`Stft`](@ref): the complex
+STFT times the harmonic mask, inverted with [`istft`](@ref) (`method`,
+`length` as there; by default the length of the analysed signal).
+"""
+get_harmonic_signal(h::Hpss; method::Symbol=:wola, length::Maybe{Int}=nothing) =
+    _masked_signal(h, h.mask_h; method, length)
+
+"""
+    get_percussive_signal(h::Hpss; method=:wola, length=nothing) -> Vector
+
+The percussive signal of an [`Hpss`](@ref) of an [`Stft`](@ref), as
+[`get_harmonic_signal`](@ref) with the percussive mask.
+"""
+get_percussive_signal(h::Hpss; method::Symbol=:wola, length::Maybe{Int}=nothing) =
+    _masked_signal(h, h.mask_p; method, length)
 
 # ---------------------------------------------------------------------------- #
 #                                  noise gates                                 #

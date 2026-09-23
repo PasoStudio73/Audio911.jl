@@ -35,7 +35,10 @@ bpm, beats = beat_track(env)
 ## Decomposition and gates
 
 - [`Hpss`](@ref): harmonic/percussive components as [`DerivedSpec`](@ref)s
-  ([`get_harmonic`](@ref), [`get_percussive`](@ref), [`get_masks`](@ref)).
+  ([`get_harmonic`](@ref), [`get_percussive`](@ref), [`get_masks`](@ref)); on an
+  `Stft`, the separated signals ([`get_harmonic_signal`](@ref),
+  [`get_percussive_signal`](@ref)). `edge=:zero` pads the median filters
+  with zeros as audioFlux does.
 - [`pcen`](@ref): per-channel energy normalisation.
 - [`noisegate`](@ref): MATLAB-style time-domain gate with attack, release and hold.
 - [`SpectralGate`](@ref): the same idea on a frequency range of a spectrogram.
@@ -43,6 +46,7 @@ bpm, beats = beat_track(env)
 ```julia
 h   = Hpss(stft; kernel=(31, 31), power=2)
 mel = MelSpec(get_harmonic(h); nbands=40)
+yh  = get_harmonic_signal(h)                               # back to the time domain
 g   = SpectralGate(stft; threshold=-50, freqrange=(40, 120))   # gate the hum band only
 ```
 

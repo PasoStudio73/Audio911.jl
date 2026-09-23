@@ -286,7 +286,7 @@ include("features/cqt_chroma.jl")
 export OnsetStrength, peak_pick, onset_detect, Tempogram, tempo, beat_track, Novelty
 include("features/onset.jl")
 
-export DerivedSpec, Hpss, get_harmonic, get_percussive, get_masks, get_name
+export DerivedSpec, Hpss, get_harmonic, get_percussive, get_masks, get_name, get_harmonic_signal, get_percussive_signal
 export noisegate, SpectralGate, pcen
 include("features/hpss.jl")
 
