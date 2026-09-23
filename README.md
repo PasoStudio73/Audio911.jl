@@ -61,6 +61,8 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
 - **Wavelet scalogram** (`Cwt`): Morlet, Morse, bump, Paul, DOG, Mexican hat,
   Hermitian and Ricker wavelets on a geometric or any filterbank grid, pooled
   on the same frame grid as the STFT; synchrosqueezing (`Wsst`, `Synsq`)
+- **Discrete wavelets** (`dwt`, `wpt`, `swt` and the `Dwt`, `Wpt`, `Swt` front
+  ends) with 51 wavelet families
 - **Constant-Q / variable-Q transform** (`Cqt`), **pseudo wavelet transform**
   (`Pwt`), **S-transform** and **fast S-transform** (`St`, `Fst`),
   **non-stationary Gabor transform** (`Nsgt`), ported from audioFlux and

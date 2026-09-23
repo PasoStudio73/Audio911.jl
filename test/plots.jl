@@ -76,7 +76,8 @@ end
               Nsgt(frames; nbands=40, scale=octave), St(frames; freqrange=(0, 300)),
               Fst(frames; freqrange=(0, 2000)), MelSpec(Stft(frames); nbands=30, scale=erb, style=hanning),
               Reassign(Stft(frames)), Wsst(Cwt(frames; scale=octave, nbands=60, freqrange=(33, 8000))),
-              Cwt(frames; wavelet=paul, scale=octave, nbands=60, freqrange=(33, 8000)))
+              Cwt(frames; wavelet=paul, scale=octave, nbands=60, freqrange=(33, 8000)),
+              Dwt(frames; level=5), Wpt(frames; level=4), Swt(frames; level=3))
         rd = recipe(s)
         @test length(rd) == 1
         t, f, z = rd[1].args

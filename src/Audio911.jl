@@ -215,6 +215,10 @@ include("transforms/nsgt.jl")
 export synsq, wsst, Synsq, Wsst, Synchrosqueezed
 include("wavelet/synsq.jl")
 
+export dwt, wpt, swt, Dwt, Wpt, Swt, DiscreteWavelet, wavelet_filters, DISCRETE_WAVELETS
+include("wavelet/dwt_coefs.jl")
+include("wavelet/dwt.jl")
+
 export Reassign, get_reassigned
 include("transforms/reassign.jl")
 

@@ -149,6 +149,7 @@ available offline.
 | `melSpectrogram` | [`MelSpec`](@ref) | parity |
 | `stft`, `istft` | [`Stft`](@ref), [`istft`](@ref) | done |
 | `cwt` (Wavelet Toolbox) | [`Cwt`](@ref), [`cwt`](@ref) (`morse`, `morlet`, `bump`, `paul`, `dog`, `mexican`, `hermit`, `ricker`, L1 normalisation) | parity with audioFlux |
+| `wavedec`, `wpdec`, `swt`, `modwt` (Wavelet Toolbox) | [`dwt`](@ref), [`wpt`](@ref), [`swt`](@ref) (periodic extension, 51 wavelets), [`Dwt`](@ref), [`Wpt`](@ref), [`Swt`](@ref) | parity with audioFlux |
 | `wsst`, `fsst` (Wavelet Toolbox, Signal Processing Toolbox) | [`Wsst`](@ref), [`wsst`](@ref); `fsst` is the STFT counterpart, see [`Reassign`](@ref) | parity with audioFlux |
 | `noiseGate` | [`noisegate`](@ref); plus [`SpectralGate`](@ref) for a frequency range | structural |
 | `detectSpeech`, `voiceActivityDetector` | — | not implemented |

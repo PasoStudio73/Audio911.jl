@@ -79,3 +79,30 @@ Coefficients map to their nearest band (in log frequency on geometric
 grids); audioFlux's octave and linear grids use a step of `(n-1)/n` bins
 instead, and its `synsq` unwraps the phase in single precision, see the
 [inventory](@ref audioflux).
+
+## Discrete wavelets
+
+[`dwt`](@ref), [`wpt`](@ref) and [`swt`](@ref) are the discrete, wave-packet
+and stationary wavelet transforms of a whole signal (audioFlux's `DWT`,
+`WPT`, `SWT`), with periodic extension and the filters of 51 wavelets:
+Haar, Daubechies `db2`–`db40`, symlets `sym2`–`sym30`, coiflets
+`coif1`–`coif5`, Fejér–Korovkin `fk4`–`fk22`, biorthogonal `bior1.1`–`bior6.8`
+and the discrete Meyer `dmey` ([`wavelet_filters`](@ref),
+[`DISCRETE_WAVELETS`](@ref)).
+
+```julia
+coefs, image = dwt(x; wavelet="db4", level=6)     # [cA₆; cD₆; …; cD₁]
+leaves, img  = wpt(x; wavelet="sym8", level=4)    # 16 bands in frequency order
+A, D         = swt(x; wavelet="coif3", level=3)   # undecimated, level × length(x)
+```
+
+[`Dwt`](@ref), [`Wpt`](@ref) and [`Swt`](@ref) pool the subbands on the
+frames of a `Frames` object like the other whole-signal front ends: every
+coefficient is held over the samples it covers, its power is averaged over
+each frame, and the rows are the subbands in ascending frequency
+([`DiscreteWavelet`](@ref)).
+
+```julia
+d = Dwt(frames; wavelet="db4", level=5)    # approximation + 5 detail bands
+w = Wpt(frames; level=4)                   # 16 equal bands
+```
