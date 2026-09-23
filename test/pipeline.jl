@@ -283,3 +283,17 @@ end
     me = Mfcc(mel; ncoeffs=13, energy=raw_energy, energy_floor=1e3)
     @test all(get_spec(me)[1, :] .>= log(1e3))
 end
+
+# ---------------------------------------------------------------------------- #
+#                         bark scale above 20.1 bark                           #
+# ---------------------------------------------------------------------------- #
+@testset "bark inverse above 20.1 bark" begin
+    edges = bark(Float64, (0, 8000), 10)
+    @test edges[1] ≈ 0 atol=1e-6
+    @test edges[end] ≈ 8000 rtol=1e-6
+    @test issorted(edges)
+    audio = Audio911.load(wav_file; format=Float64)
+    stft  = Stft(audio; winsize=512, winstep=256)
+    @test get_nbands(BarkSpec(stft; nbands=20)) == 20
+    @test all(get_freq(BarkSpec(stft; nbands=20)) .< 8000)
+end

@@ -9,7 +9,7 @@ import DSP
 using  LinearAlgebra
 using  Statistics: mean, std, median
 using  Printf: @sprintf
-using  Plots
+using  RecipesBase
 
 # codecs for the internal audio loader
 using  libsndfile_jll: libsndfile
@@ -261,7 +261,8 @@ export get_fbank, get_frames, get_parent, get_frontend, get_signal, frame!, get_
 # ---------------------------------------------------------------------------- #
 #                                   plots                                      #
 # ---------------------------------------------------------------------------- #
-export plot
+# Plots recipes: `using Plots; plot(x)` works for every stage, at no cost
+# when Plots is not loaded.
 include("plots.jl")
 
 end

@@ -156,10 +156,12 @@ const bark(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
             x, bark_val
     )
     barkvec = LinRange(get_low(barkrange), get_hi(barkrange), nbands + 2)
+    # inverse of the Traunmüller corrections: (x - 0.3)/0.85 below 2 bark,
+    # (x + 4.422)/1.22 above 20.1 bark
     bark2 = map(x -> x < 2 ?
         (x - 0.3) / 0.85 :
         x > 20.1 ?
-            x + 0.22 * 20.1 / 1.22 :
+            (x + 0.22 * 20.1) / 1.22 :
             x, barkvec
     )
     return @. T(1960 * (bark2 + 0.53) / (26.28 - bark2))
