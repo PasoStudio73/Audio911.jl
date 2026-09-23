@@ -1,6 +1,8 @@
 # ---------------------------------------------------------------------------- #
 #                                 inverse STFT                                 #
 # ---------------------------------------------------------------------------- #
+# The weighted overlap-add follows audioFlux's stftObj_istft (MIT licence,
+# Copyright (c) 2023 libAudioFlux).
 # Weighted overlap-add (Griffin & Lim 1984), the default of audioFlux
 # (stftObj_istft), librosa and MATLAB, and plain overlap-add.
 

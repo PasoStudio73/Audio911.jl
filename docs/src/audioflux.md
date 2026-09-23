@@ -48,12 +48,12 @@ Conventions that differ globally and are not repeated in every row:
 
 | audioFlux | Audio911 | definition | status | oracle |
 |:----------|:---------|:-----------|:-------|:-------|
-| `BFT` (linear scale) | [`Stft`](@ref) | same one-sided STFT; audioFlux's `power` is `|X|²` without window normalisation, same as `Stft`. audioFlux's `is_continue` (state across calls) has no counterpart | already covered | MATLAB |
+| `BFT` (linear scale) | [`Stft`](@ref) | same one-sided STFT; audioFlux's `power` is `abs(X)²` without window normalisation, same as `Stft`. audioFlux's `is_continue` (state across calls) has no counterpart | already covered | MATLAB |
 | `BFT` (linspace/mel/bark/erb/octave/log scales) | [`MelSpec`](@ref), [`BarkSpec`](@ref), [`ErbSpec`](@ref), [`LinSpec`](@ref) on an `Stft` | a BFT with a scale is an STFT times a filterbank: the same pipeline as Audio911's `Stft → MelSpec`. Scales `linspace`, `erb` (triangular, Glasberg–Moore ERB-rate), `octave` and `log` and the window filter styles are new, see the scale and style sections | extend existing (`auditory_fbank` scales and styles) | fixture |
 | `BFT(is_reassign=True)` | [`Reassign`](@ref) | see reassignment below | port | fixture |
 | `BFT(is_temporal=True)` (energy, rms, zcr per frame) | [`Energy`](@ref), [`Rms`](@ref), [`Zcr`](@ref) | same three per-frame values | already covered | structural |
 | `NSGT` (efficient and standard filter banks) | — | non-stationary Gabor transform: the whole-signal FFT is windowed band by band (window length from the band edges, `min_len` floor) and inverse-transformed at the band's own length | port as [`Nsgt`](@ref); the per-band time resolution is pooled onto the `Frames` grid | structural (audioFlux returns a ragged cell array resampled to a common length, not comparable bin by bin; band centre frequencies and band energies are checked against the fixture) |
-| `CWT` (morse, morlet, bump, paul, dog, mexican, hermit, ricker; all scale types; `is_padding`) | [`Cwt`](@ref), [`cwt`](@ref) | `morse` and `bump` are identical (peak normalised to 2). audioFlux's `morlet` is `2 exp(-(ω-ω0)²/β)` with `β=2`, Audio911's is `π^(-1/4) exp(-(ω-ω0)²/2)`: same shape, constant factor differs (kept, documented). audioFlux computes the complex transform on the whole signal; Audio911's `Cwt` pools `|W|²` over frames. audioFlux's `linear` grid is the `linspace` grid on FFT-bin frequencies | extend existing: wavelets [`paul`](@ref), [`dog`](@ref), [`mexican`](@ref), [`hermit`](@ref), [`ricker`](@ref); `scale`/`nbands`/`bins_per_octave` keywords for the octave/mel/bark/erb/linspace/log grids; whole-signal [`cwt`](@ref) with `pad`; `get_complex` | fixture (every wavelet with and without padding, every grid) |
+| `CWT` (morse, morlet, bump, paul, dog, mexican, hermit, ricker; all scale types; `is_padding`) | [`Cwt`](@ref), [`cwt`](@ref) | `morse` and `bump` are identical (peak normalised to 2). audioFlux's `morlet` is `2 exp(-(ω-ω0)²/β)` with `β=2`, Audio911's is `π^(-1/4) exp(-(ω-ω0)²/2)`: same shape, constant factor differs (kept, documented). audioFlux computes the complex transform on the whole signal; Audio911's `Cwt` pools `abs(W)²` over frames. audioFlux's `linear` grid is the `linspace` grid on FFT-bin frequencies | extend existing: wavelets [`paul`](@ref), [`dog`](@ref), [`mexican`](@ref), [`hermit`](@ref), [`ricker`](@ref); `scale`/`nbands`/`bins_per_octave` keywords for the octave/mel/bark/erb/linspace/log grids; whole-signal [`cwt`](@ref) with `pad`; `get_complex` | fixture (every wavelet with and without padding, every grid) |
 | `PWT` (pseudo wavelet transform) | — | the whole-signal FFT multiplied by window-shaped bandpass filters designed on any scale, one inverse FFT per band | port as [`Pwt`](@ref) | fixture |
 | `CQT` | — (the coverage table pointed to `Cwt` with `bump` as a constant-Q substitute) | Brown–Puckette spectral kernels: per bin a windowed complex exponential of length `Q·sr/f`, FFT'd, thresholded at `thresh` (0.01), applied to the frame FFT; `factor` scales Q, `norm` none/area/bandwidth, `is_scale` divides by the kernel length | port as [`Cqt`](@ref) | fixture |
 | `VQT` | — | the CQT with `beta > 0` (audioFlux's `beta` is the γ of Schörkhuber et al. 2014): kernel length `Q·sr/(f + β/(2^(1/b)-1))`; audioFlux applies it in the top octave only (the decimated octaves reuse the top octave's lengths), Audio911 in every bin | port: `Cqt(...; gamma=...)` | fixture (top octave) |
@@ -68,7 +68,7 @@ Conventions that differ globally and are not repeated in every row:
 | `wsst` (wavelet synchrosqueezed transform, all wavelets and scales) | — | CWT plus the derivative wavelet (`iω ψ̂`) for the instantaneous frequency, then synchrosqueezing; same band-mapping note as `synsq` | port as [`wsst`](@ref) and [`Wsst`](@ref) | fixture (mel direct, octave through the mapping emulation) |
 | `CWD` (Choi–Williams), `WVD` (Wigner–Ville) | — | declared in `include/cwd_algorithm.h` and `wvd_algorithm.h` only: no C source, no Python wrapper in the snapshot | port from the literature as [`Wvd`](@ref) and [`Cwd`](@ref) (pseudo forms on the `Frames` grid, [`CohenDistribution`](@ref), signed values through [`get_distribution`](@ref)) and [`wvd`](@ref) (whole signal) | structural (time marginal, tone localisation, cross-term attenuation) |
 | `EMD`, `EWT`, `HHT` | — | header-only declarations, no implementation in the snapshot | port from the literature: [`emd`](@ref) (Huang 1998 sifting, mirrored boundaries), [`ewt`](@ref)/[`Ewt`](@ref) (Gilles 2013), [`Hht`](@ref) (Hilbert spectrum of the IMFs on the `Frames` grid, [`get_imfs`](@ref)) | structural (completeness, tone separation, tight frame) |
-| `Cepstrogram` (`cep_num`) | — (Audio911 has `pitch_cep` per frame) | real cepstrum `ifft(log|X|²)` of every STFT frame, liftered into an envelope (first `cep_num` quefrencies and their mirror) and details (the rest; audioFlux's details range includes one mirrored quefrency of the envelope, kept for parity) | port as [`Cepstrogram`](@ref) | fixture |
+| `Cepstrogram` (`cep_num`) | — (Audio911 has `pitch_cep` per frame) | real cepstrum `ifft(log(abs(X)²))` of every STFT frame, liftered into an envelope (first `cep_num` quefrencies and their mirror) and details (the rest; audioFlux's details range includes one mirrored quefrency of the envelope, kept for parity) | port as [`Cepstrogram`](@ref) | fixture |
 | `Temporal` (`energy`, `rms`, `zcr`, `ezr`) | [`Energy`](@ref), [`Rms`](@ref), [`Zcr`](@ref) | energy and rms of the windowed frame: `Energy(frames; windowed=true)`, `Rms(frames; windowed=true)`. audioFlux's zero-crossing rate counts strict sign changes of the windowed frame; Audio911's counts a zero as positive. `ezr = log10(1 + γ·energy) / (zcr·N + 1)` is new; `ezr` is not wrapped in Python (the fixture calls the C function) | extend existing: [`Ezr`](@ref), `Zcr(...; windowed, strict)` | fixture |
 | `Spectrogram` class (`Linear`, `Mel`, `Bark`, `Erb`, `Chroma`, `Deep`, `DeepChroma`) | `Stft`, `MelSpec`, `BarkSpec`, `ErbSpec`, `Chroma` | `Linear`/`Mel`/`Bark`/`Erb` are BFT scale types (above). `Deep`/`DeepChroma` are an undocumented salience-filtered spectrogram (`SpectralDeepConfig`: `maxMin=13`, `minMax=2`, `ratio=10`, amplitude recovery and K-weighting flags) with no published definition | `Deep`, `DeepChroma`: out of scope (no definition to port beyond the C constants; nothing to validate against) | — |
 | `is_continue` streaming mode of every transform | — | state carried across successive calls | out of scope (Audio911 processes a whole `Frames` object; streaming is listed as not implemented in the coverage table) | — |
@@ -105,7 +105,7 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 | audioFlux | Audio911 | definition | status | oracle |
 |:----------|:---------|:-----------|:-------|:-------|
 | `flatness` | [`SpectralFlatness`](@ref) | `exp(mean(log(S + 2e-16))) / mean(S)`: identical up to the epsilon | already covered | MATLAB |
-| `flux(step, p, is_positive, is_exp, tp)` | [`SpectralFlux`](@ref) (`p`-norm with root) | audioFlux: `Σ |S_t − S_{t−step}|^p`, optional half-wave rectification, optional mean instead of sum, root only with `is_exp`; its default (`p=2`, no root) is the squared MATLAB flux | extend existing: keywords `step`, `positive`, `root`, `mean` (defaults keep the MATLAB definition) | fixture |
+| `flux(step, p, is_positive, is_exp, tp)` | [`SpectralFlux`](@ref) (`p`-norm with root) | audioFlux: `Σ abs(S_t − S_{t−step})^p`, optional half-wave rectification, optional mean instead of sum, root only with `is_exp`; its default (`p=2`, no root) is the squared MATLAB flux | extend existing: keywords `step`, `positive`, `root`, `mean` (defaults keep the MATLAB definition) | fixture |
 | `rolloff(threshold)` | [`SpectralRolloff`](@ref) | first bin where the cumulative sum reaches `threshold · Σ S`: identical | already covered | MATLAB |
 | `centroid` | [`SpectralCentroid`](@ref) | identical | already covered | MATLAB |
 | `spread` | [`SpectralSpread`](@ref) | identical | already covered | MATLAB |
@@ -114,19 +114,19 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 | `crest` | [`SpectralCrest`](@ref) | identical | already covered | MATLAB |
 | `slope` | [`SpectralSlope`](@ref) | identical | already covered | MATLAB |
 | `decrease` | [`SpectralDecrease`](@ref) | identical | already covered | MATLAB |
-| `band_width(p)` | [`SpectralBandwidth`](@ref) | audioFlux: `(Σ S (f − c)^p)^(1/p)` without normalising `S` to unit sum (librosa and Audio911 normalise), and with the signed deviation raised to `p` (Audio911 uses `|f − c|^p`, which differs for `p ≠ 2`) | extend existing: `normalize` keyword | fixture (`p = 2`) |
+| `band_width(p)` | [`SpectralBandwidth`](@ref) | audioFlux: `(Σ S (f − c)^p)^(1/p)` without normalising `S` to unit sum (librosa and Audio911 normalise), and with the signed deviation raised to `p` (Audio911 uses `abs(f − c)^p`, which differs for `p ≠ 2`) | extend existing: `normalize` keyword | fixture (`p = 2`) |
 | `rms` | [`Rms`](@ref)`(spec)` | audioFlux: `sqrt(2 Σ' S² / nbins²)` with half weight on DC (and on the last bin when their number is even), `S` the magnitude; Audio911's `Rms` divides by `nfft²` (librosa) | extend existing: [`SpectralRms`](@ref) with audioFlux's normalisation | fixture |
 | `energy(is_log, gamma)` | — | `mean(S²)` over the bins (`S` if power), optionally `log(1 + γ S²)` | port: [`SpectralEnergy`](@ref) | fixture |
 | `hfc` | — | high-frequency content `Σ k · S_k` (bin index weighted) | port: [`SpectralHfc`](@ref) | fixture |
-| `sd(step, is_positive)` | — | spectral difference `Σ |S_t − S_{t−step}|` | port: [`SpectralSd`](@ref) | fixture |
+| `sd(step, is_positive)` | — | spectral difference `Σ abs(S_t − S_{t−step})` | port: [`SpectralSd`](@ref) | fixture |
 | `sf(step, is_positive)` | — | `Σ (S_t − S_{t−step})²` | port: [`SpectralSf`](@ref) | fixture |
 | `mkl(tp)` | — | modified Kullback–Leibler `Σ log(1 + S_t / (S_{t−1} + ε))`, sum or mean | port: [`SpectralMkl`](@ref) | fixture |
-| `pd`, `wpd`, `nwpd` | — | phase deviation `mean |φ_t − 2φ_{t−1} + φ_{t−2}|`, weighted by the magnitude, normalised by the mean magnitude | port: [`SpectralPd`](@ref), [`SpectralWpd`](@ref), [`SpectralNwpd`](@ref) (need the phase, see the complex accessor) | fixture |
-| `cd`, `rcd` | — | complex deviation `Σ |S_t e^{iφ_t} − S_{t−1} e^{i(2φ_{t−1} − φ_{t−2})}|`, rectified variant counts only rising bins | port: [`SpectralCd`](@ref), [`SpectralRcd`](@ref) | fixture |
+| `pd`, `wpd`, `nwpd` | — | phase deviation `mean abs(φ_t − 2φ_{t−1} + φ_{t−2})`, weighted by the magnitude, normalised by the mean magnitude | port: [`SpectralPd`](@ref), [`SpectralWpd`](@ref), [`SpectralNwpd`](@ref) (need the phase, see the complex accessor) | fixture |
+| `cd`, `rcd` | — | complex deviation `Σ abs(S_t e^{iφ_t} − S_{t−1} e^{i(2φ_{t−1} − φ_{t−2})})`, rectified variant counts only rising bins | port: [`SpectralCd`](@ref), [`SpectralRcd`](@ref) | fixture |
 | `broadband(threshold)` | — | number of bins whose level rises by more than `threshold` dB from the previous frame | port: [`SpectralBroadband`](@ref) | fixture |
 | `novelty(step, threshold, method_type, data_type)` | — | per-bin novelty `sub`/`entropy`/`kl`/`is` against frame `t−step`, summed (`value`) or counted (`number`) where above `threshold` | port: [`SpectralNovelty`](@ref) | fixture |
-| `eef(is_norm)` | — | energy–entropy feature `sqrt(1 + |energy · entropy|)` | port: [`SpectralEef`](@ref) | fixture |
-| `eer(is_norm, gamma)` | — | `sqrt(1 + |log(1 + γ energy) / entropy|)` | port: [`SpectralEer`](@ref) | fixture |
+| `eef(is_norm)` | — | energy–entropy feature `sqrt(1 + abs(energy · entropy))` | port: [`SpectralEef`](@ref) | fixture |
+| `eer(is_norm, gamma)` | — | `sqrt(1 + abs(log(1 + γ energy) / entropy))` | port: [`SpectralEer`](@ref) | fixture |
 | `max`, `mean`, `var` | — | per-frame maximum (value and its frequency), mean and sample variance of the values; the frequency outputs of `mean` and `var` are the mean and variance of the band frequencies, the same for every frame | port: [`SpectralMax`](@ref), [`SpectralPeak`](@ref) (frequency of the maximum), [`SpectralMean`](@ref), [`SpectralVar`](@ref); the constant frequency outputs are not ported | fixture |
 | `set_edge`, `set_edge_arr` (bin subsets) | `freqrange` on [`LinSpec`](@ref) | descriptors on a bin range are descriptors of a `LinSpec` | already covered | — |
 
@@ -136,11 +136,11 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 |:----------|:---------|:-----------|:-------|:-------|
 | `xxcc(cc_num, rectify_type)` on any spectrogram | [`Mfcc`](@ref) on any spectrogram | `log10` (audioFlux calls it "matlab canonic", floored at `1e-8`) or cubic-root rectification followed by an orthonormal DCT-II: identical to `Mfcc(spec; rect=mlog, floor=1e-8)` and `rect=cubic_root` | already covered | fixture (`Mfcc` against `xxcc`) |
 | `xxcc_standard(cc_num, delta_window_length, energy_type, rectify_type)` | [`Mfcc`](@ref) + [`Delta`](@ref) | coefficients with the natural-log energy replacing C0 or, for audioFlux's `APPEND`, placed *before* the coefficients, plus delta and delta-delta along the coefficient axis (`Delta(source=:transposed)`). The 0.1.9 Python wrapper writes past its buffers with `APPEND`; the fixture calls the C function | extend existing: [`xxcc_standard`](@ref), `energy_mode=:prepend` on [`Mfcc`](@ref) | fixture |
-| `mfcc`, `bfcc`, `gtcc`, `cqcc` (`core.py`) | `Mfcc(MelSpec)`, `Mfcc(BarkSpec)`, `Gtcc(ErbSpec)`, `Mfcc(Cqt)` | the four are `xxcc` on the mel, bark, ERB and CQT spectrograms | already covered (`cqcc` once `Cqt` exists) | fixture |
+| `mfcc`, `bfcc`, `gtcc`, `cqcc` (`core.py`) | `Mfcc(MelSpec)`, `Mfcc(BarkSpec)`, `Gtcc(ErbSpec)`, `Mfcc(Cqt)` | the four are `xxcc` on the mel, bark, ERB and CQT spectrograms | already covered (`cqcc` is `Mfcc(Cqt(...))`) | MATLAB for the mel, bark and gammatone cepstra; `xxcc` itself is checked against audioFlux on a spectrogram (fixture); `cqcc` structural (`test/cqt.jl`) |
 | `cqhc` (CQT harmonic coefficients) | — | undocumented (`cqtObj_cqhc`, harmonic folding of the CQT) | out of scope (no definition beyond the C loop; not exposed in Python) | — |
-| `deconv` on any spectrogram | — | per frame: `|FFT(S)|` of the magnitude spectrum; timbre = `real(ifft(|FFT(S)|))`, pitch = `real(ifft(FFT(S) / |FFT(S)|))` | port: [`Deconv`](@ref) | fixture |
+| `deconv` on any spectrogram | — | per frame: `abs(FFT(S))` of the magnitude spectrum; timbre = `real(ifft(abs(FFT(S))))`, pitch = `real(ifft(FFT(S) / abs(FFT(S))))` | port: [`Deconv`](@ref) | fixture |
 | `chroma_linear` (`chroma_stftFilterBank`) | [`Chroma`](@ref), [`chroma_fbank`](@ref) | the librosa chroma filterbank (Gaussian bins, octave weighting, L2 columns, C first) with per-frame max normalisation: identical | already covered | fixture (`Chroma(Stft)` against `chroma_linear`, 1e-6) |
-| `chroma_octave` | — | chroma of an octave-scale BFT | already covered once the `octave` scale exists (`Chroma(MelSpec(stft; scale=octave))` folds the bands) | structural |
+| `chroma_octave` | — | chroma of an octave-scale BFT | already covered with the `octave` scale: `Chroma(MelSpec(stft; scale=octave))` folds the bands | structural |
 | `chroma_cqt` (`chroma_cqtFilterBank`, `ChromaDataNormalType` none/max/min/p1/p2) | — | fold the CQT bins of each octave into `chroma_num` classes (rectangular filters, `bin_per_octave/chroma_num` bins each), per-frame normalisation | port: `Chroma(cqt::Cqt)` with the folding filterbank; norm `nothing`/`Inf`/`1`/`2` (`min` is not offered) | fixture |
 | `FeatureExtractor` (many transforms in one call) | pipeline composition | convenience wrapper | already covered (compose stages) | — |
 
@@ -186,7 +186,7 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 | `nmf(k, max_iter, tp kl/is/euc, thresh, norm)` | — | multiplicative updates for the KL, Itakura–Saito and Euclidean divergences (the code's type codes are 0 KL, 1 IS, 2 Euclidean, unlike its header comment), `H` then `W` from the same `WH`, the columns of `W` renormalised by their max, L1 or L2 norm; the Python wrapper starts from ramps `1, 2, 3, ...` | port: [`nmf`](@ref) (`init=:audioflux` for the ramps; NNDSVD-A by default) | fixture (every divergence and norm, 20 and 300 iterations, float32 agreement) |
 | `hmm` (C only: init, predict, decode, train, generate) | — | discrete HMM: forward likelihood, Viterbi decoding, Baum–Welch training, sampling. audioFlux's forward-backward is unscaled (it underflows on long sequences), its model starts from a clock-seeded random draw, and its sampler reseeds the clock on every draw | port: [`Hmm`](@ref) with [`hmm_predict`](@ref) (log-likelihood), [`hmm_decode`](@ref), [`hmm_train`](@ref) (Baum–Welch from a given model, returns a new one), [`hmm_generate`](@ref) (`rng`); scaled recursions. The names avoid the generic `predict` and `fit!` of other packages | fixture through ctypes (likelihood, decoding score, the model after 1, 5 and 100 training iterations) |
 | `viterbi` (C only) | — | Viterbi scores with log or linear probabilities; audioFlux returns the best state of every frame (argmax of the scores) instead of backtracking its pointers | port: [`viterbi`](@ref) (librosa's `sequence.viterbi` interface: frame likelihoods, transition matrix, initial distribution), backtracked | fixture through ctypes (the path from audioFlux's own pointers, the best score) |
-| `trist` (internal) | — | helper of the STFT pitch method | folded into `pitch_stft` | — |
+| `trist` (internal) | — | the harmonic-vote helper of `PitchSTFT` (undocumented heuristics) | out of scope (internal; [`pitch_stft`](@ref) uses a harmonic sieve instead) | — |
 
 ## Utilities (`audioflux.utils`)
 
@@ -195,31 +195,48 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 | `power_to_db(min_db)` | [`power_to_db`](@ref) | `10 log10(S / max)` floored at `min_db`: `power_to_db(S; ref=maximum, top_db=-min_db)` | already covered | fixture |
 | `power_to_abs_db`, `mag_to_abs_db(fft_length, is_norm, min_db)` | [`power_to_db`](@ref), [`amplitude_to_db`](@ref) | `10 log10(S / fft_length²)` (or `20 log10(S / fft_length)`) floored at `min_db`; `is_norm` returns `max − dB` | extend existing: a `min_db` floor on both, so `power_to_db(S; ref=fft_length^2, top_db=nothing, min_db=-80)`; `is_norm` is `maximum(D) .- D` (no new names) | fixture |
 | `log_compress(gamma)`, `log10_compress(gamma)` | — | `log(1 + γ S)`, `log10(1 + γ S)` | already covered by Base (`log1p.(γ .* S)`, `log10.(1 .+ γ .* S)`); no wrapper added | fixture (the Base expressions) |
-| `temproal_db(base)` | — | sample levels `20 log10(|x| + 10⁻⁸)` floored at −36 dB: their maximum, their mean and the fraction at or below `−base` | port: [`temporal_db`](@ref) | fixture |
+| `temproal_db(base)` | — | sample levels `20 log10(abs(x) + 10⁻⁸)` floored at −36 dB: their maximum, their mean and the fraction at or below `−base` | port: [`temporal_db`](@ref) | fixture |
 | `delta(order)` | [`Delta`](@ref) | regression filter along the last axis: `Delta(source=:transposed)` | already covered | — |
-| `get_phase` | [`get_phase`](@ref) | `atan2(imag, real)` | port (with the complex accessor) | — |
+| `get_phase` | [`get_phase`](@ref) | `atan2(imag, real)` | port (with the complex accessor) | structural (`angle` of the complex STFT and CQT) |
 | `note_to_midi`, `midi_to_hz`, `note_to_hz`, `midi_to_note`, `hz_to_midi`, `hz_to_note` | same names | identical | already covered | — |
 | `min_max_scale`, `stand_scale`, `max_abs_scale`, `robust_scale`, `center_scale`, `mean_scale`, `arctan_scale` | — | per-column scaling of a samples × features matrix; a constant column gives zeros. `robust_scale` reads its quartiles from the unsorted column, so it is only right for sorted data | port: one function, [`feature_scale`](@ref)`(X; method=:minmax/:standard/:maxabs/:robust/:center/:mean/:arctan)`, with sorted quartiles | fixture (every scaler; the robust one on sorted columns) |
 | `synth_f0(times, frequencies, samplate, amplitudes)` | [`tone`](@ref) (constant frequency) | frequency and amplitude interpolated at every sample up to `floor(t_end · sr)`, phase the running sum of `2π f / sr` | port: [`synth_f0`](@ref) | fixture (float32 phase accumulation) |
 | `queue_fre2`, `queue_fre3` | — | "queue frequency" ratios of two or three frequencies, implemented in the 7700-line `mir/_queue.c` without documentation | out of scope (no definition) | — |
-| `read`, `write`, `convert_mono`, `resample`, `chirp` (`audio.py`) | [`load`](@ref), [`to_mono`](@ref), [`resample`](@ref), [`chirp`](@ref) | audioFlux delegates to soundfile/scipy; `write` has no counterpart | `write`: out of scope (Audio911 is an analysis library; the loader is read-only) | — |
+| `read`, `write`, `convert_mono`, `resample`, `chirp` (`audio.py`) | [`load`](@ref), [`to_mono`](@ref), [`resample`](@ref), [`chirp`](@ref) | audioFlux delegates to soundfile/scipy; `write` has no counterpart | already covered (`read`, `convert_mono`, `resample`, `chirp`); `write`: out of scope (Audio911 is an analysis library; the loader is read-only) | MATLAB (`load`) |
 | `sample_path`, `check_audio`, `ascontiguous_*` | — | Python conveniences | out of scope (n/a in Julia) | — |
 | `display` (`fill_spec`, `fill_wave`, `fill_plot`, `Plot`) | Plots recipes | plotting | already covered (every new type gets a recipe) | — |
 
-## Summary of the plan
+## Summary
 
-Ports, in the order they are delivered: octave/log/linspace/ERB scales and
-window filter styles; `Cqt` (with VQT); `Pwt`; `St`/`fst`; `Nsgt`; the
-complex-spectrum accessor and `istft`; `Reassign`; `Synsq` and `Wsst`; the
-extra wavelets and grids of `Cwt`; `dwt`/`wpt`/`swt` with the wavelet
-tables; `Wvd`, `Cwd`, `emd`, `ewt`, `Hht`; the spectral descriptors;
-`Deconv`, `Cepstrogram`, `Ezr`, `xxcc_standard`; `Novelty`, the pitch
-methods, `harmonic_count`, the `HarmonicRatio` variant, HPSS signals, `nmf`, `Hmm`, `viterbi`; `phase_vocoder`,
-`time_stretch`, `pitch_shift`; `czt`, `hilbert`, `xcorr`, `convolve`, the
-sinc resampler, B/D weightings, `feature_scale`, `temporal_db` and
+Every row above is delivered with the status it states. Of the 71 rows
+ported or extended, 64 are checked against audioFlux fixtures and 7 are
+structural: the NSGT (pooled onto frames, its band layout and energies
+checked against audioFlux), the Wigner–Ville and Choi–Williams
+distributions, EMD/EWT/HHT, the spectral-peak pitch, the Hilbert transform,
+the phase accessor and the extra window types.
+
+Delivered, in order: the octave/log/linspace/ERB scales and window filter
+styles; `Cqt` (with the VQT), `Pwt`, `St`/`fst`, `Nsgt`; the complex-spectrum
+accessor and `istft`; `Reassign`; `Synsq` and `Wsst` with the extra
+wavelets and grids of `Cwt`; `dwt`/`wpt`/`swt` with 51 wavelet families;
+`Wvd`, `Cwd`, `emd`, `ewt`, `Hht`, `hilbert`; the spectral descriptors;
+`Deconv`, `Cepstrogram`, `Ezr`, `xxcc_standard`; the PEF, HPS, LHS and
+spectral-peak pitch methods; `Novelty` onsets; the separated HPSS signals;
+`nmf`, `viterbi`, `Hmm`; `harmonic_count`; `phase_vocoder`,
+`time_stretch`, `pitch_shift` and the sinc resampler; `czt`, `xcorr`,
+`convolve`, the B/D weightings, `feature_scale`, `temporal_db` and
 `synth_f0`.
 
 Out of scope, with the reason given in the rows: the `Deep` spectrograms,
-`cqhc`, `PitchFFP`, `TuneTrack`, `queue_fre*`, the NMF-based HPSS named only in a
-docstring, `is_continue` streaming, audio writing and the internal
-filter-design helpers.
+`cqhc`, `PitchFFP`, `TuneTrack`, the `trist` helper, `queue_fre*`, the
+NMF-based HPSS named only in a docstring, `is_continue` streaming, audio
+writing, the internal filter-design helpers and the Python conveniences.
+
+Defects of audioFlux 0.1.9 found on the way (each documented in its row
+and worked around in the oracle scripts): the DWT wrapper always applies
+`sym4`; the `xxcc_standard` `APPEND` wrapper overflows its buffers;
+`Temporal.ezr` is not wrapped; the CZT wrapper passes half the samples the
+C function reads; `PitchSTFT` swaps its bin bounds; `viterbi` does not
+backtrack; the D weighting has a typo; `robust_scale` reads quartiles from
+unsorted data; the `TimeStretch` wrapper returns unnormalised samples past
+the output length.

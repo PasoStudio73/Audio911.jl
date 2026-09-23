@@ -1,6 +1,9 @@
 # ---------------------------------------------------------------------------- #
 #                               filterbank setup                               #
 # ---------------------------------------------------------------------------- #
+# The linspace, ERB, octave and log scales and the window filter styles are
+# ported from audioFlux's filterbank/ (MIT licence, Copyright (c) 2023
+# libAudioFlux).
 struct FBankSetup <: AbstractSetup
     sr::Int
     nbands::Int

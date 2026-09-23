@@ -1,6 +1,8 @@
 # ---------------------------------------------------------------------------- #
 #                                   windows                                    #
 # ---------------------------------------------------------------------------- #
+# The bohman, kaiser and gauss windows follow audioFlux's
+# dsp/flux_window.c (MIT licence, Copyright (c) 2023 libAudioFlux).
 """
     povey(n::Integer) -> Vector{Float64}
 

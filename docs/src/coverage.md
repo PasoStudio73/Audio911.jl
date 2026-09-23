@@ -172,9 +172,10 @@ agree and how each port is tested, is in the [audioFlux inventory](@ref audioflu
 
 ## Not reached in this pass
 
-Inverse transforms (`istft`, `griffinlim`, `mel_to_audio`), the
-probabilistic pitch tracker (`pyin`), tuning estimation, time stretching
-and pitch shifting, loudness meters, speech detection, NMF decomposition,
-segmentation and sequence alignment are listed above as not implemented. They are omitted deliberately, not
-silently: each needs either the complex STFT (which the pipeline does not
-keep, to bound memory) or a substantial algorithm of its own.
+Phase reconstruction (`griffinlim`, `mel_to_audio`), the probabilistic
+pitch tracker (`pyin`), tuning estimation, loudness meters, speech
+detection, segmentation and DTW are listed above as not implemented. They
+are omitted deliberately, not silently: each is a substantial algorithm of
+its own. The complex STFT they would build on is available through
+[`get_complex`](@ref), and [`istft`](@ref), the phase vocoder, NMF and the
+Viterbi decoder are implemented (see the [audioFlux inventory](@ref audioflux)).

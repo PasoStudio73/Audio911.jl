@@ -1,6 +1,8 @@
 # ---------------------------------------------------------------------------- #
 #                                onset strength                                #
 # ---------------------------------------------------------------------------- #
+# Novelty and the peak-picking windows follow audioFlux's mir/onset_algorithm.c
+# (MIT licence, Copyright (c) 2023 libAudioFlux).
 struct OnsetSetup <: AbstractSetup
     sr::Int64
     lag::Int64

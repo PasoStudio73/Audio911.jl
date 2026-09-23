@@ -8,6 +8,18 @@
 # transform. The filter tables are in dwt_coefs.jl.
 
 """
+    DISCRETE_WAVELETS
+
+Names of the 51 discrete wavelets accepted by [`wavelet_filters`](@ref),
+[`dwt`](@ref), [`wpt`](@ref) and [`swt`](@ref) (audioFlux's families):
+`"haar"`, Daubechies `"db2"`–`"db10"`, `"db20"`, `"db30"`, `"db40"`,
+symlets `"sym2"`–`"sym10"`, `"sym20"`, `"sym30"`, coiflets `"coif1"`–`"coif5"`,
+Fejér-Korovkin `"fk4"`, `"fk6"`, `"fk8"`, `"fk14"`, `"fk18"`, `"fk22"`,
+biorthogonal `"bior1.1"`–`"bior6.8"` and the discrete Meyer `"dmey"`.
+"""
+DISCRETE_WAVELETS
+
+"""
     wavelet_filters(name) -> (loD, hiD, loR, hiR)
 
 Decomposition and reconstruction filters of a discrete wavelet: `"haar"`,

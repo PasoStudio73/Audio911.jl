@@ -1,6 +1,9 @@
 # ---------------------------------------------------------------------------- #
 #                                    setups                                    #
 # ---------------------------------------------------------------------------- #
+# The audioFlux keywords of SpectralFlux, SpectralEntropy and
+# SpectralBandwidth follow its flux_spectral.c (MIT licence, Copyright (c)
+# 2023 libAudioFlux).
 struct SpectralSetup <: AbstractSetup
     sr::Int64
 end

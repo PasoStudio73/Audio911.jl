@@ -28,6 +28,12 @@ exists and a design that lets you swap the algorithm at every stage.
   differ on is a keyword. See [MFCC variants](@ref mfcc_variants).
 - **librosa and MATLAB coverage.** Feature by feature, with the status of
   each in the [coverage table](@ref coverage).
+- **audioFlux's algorithms.** The constant-Q, S-, pseudo-wavelet and
+  non-stationary Gabor transforms, reassignment and synchrosqueezing,
+  discrete wavelets, Cohen-class and adaptive decompositions, spectral
+  descriptors, pitch methods, NMF, HMMs, time stretch and pitch shift,
+  checked against [audioFlux](https://github.com/libAudioFlux/audioFlux)
+  itself. See the [audioFlux inventory](@ref audioflux).
 - **Built-in audio loading.** WAV, FLAC, OGG and MP3 through libsndfile
   and mpg123; in-memory arrays through [`AudioFile`](@ref).
 - **Plots recipes** for every stage, at no cost unless Plots is loaded.
@@ -69,6 +75,7 @@ plot(mel; freq_scale=:log10)
 - One page per stage: [Loading audio](@ref loading), [Frames](@ref frames),
   [STFT](@ref stft), [Wavelets](@ref cwt), [Filterbanks](@ref filterbanks),
   [Spectrograms](@ref spectrograms), [Cepstra](@ref cepstra),
+  [Constant-Q and other transforms](@ref transforms),
   [Descriptors](@ref descriptors), [Features](@ref features),
   [Signal utilities](@ref signal), [Plotting](@ref plotting).
 - [API reference](@ref api).
@@ -76,4 +83,7 @@ plot(mel; freq_scale=:log10)
 ## About
 
 Audio911.jl is developed by the [ACLAI Lab](https://aclai.unife.it/en/) at
-the University of Ferrara. MIT license.
+the University of Ferrara. MIT license. The ports from
+[audioFlux](https://github.com/libAudioFlux/audioFlux) (MIT licence,
+Copyright (c) 2023 libAudioFlux) keep its attribution in their source
+files.

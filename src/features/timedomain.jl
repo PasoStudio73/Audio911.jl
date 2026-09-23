@@ -1,6 +1,9 @@
 # ---------------------------------------------------------------------------- #
 #                         frame-level time-domain features                     #
 # ---------------------------------------------------------------------------- #
+# The Zcr `strict` rule and HarmonicRatio(method=:audioflux) are ported from
+# audioFlux's flux_temporal.c and mir/harmonicRatio_algorithm.c (MIT licence,
+# Copyright (c) 2023 libAudioFlux).
 # These descriptors read the frames directly (no transform). Each stores one
 # value per frame, keeps the Frames as its parent and therefore shares the
 # time axis (get_times) of every spectral feature computed from the same

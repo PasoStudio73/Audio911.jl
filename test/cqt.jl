@@ -52,6 +52,10 @@ wav_file = test_file("test.wav")
     mfcc = Mfcc(mel; ncoeffs=13)
     @test size(get_data(mfcc)) == (length(frames), 13)
     @test size(get_data(Delta(mfcc))) == size(get_data(mfcc))
+    # audioFlux's cqcc: the cepstrum of the constant-Q spectrogram itself
+    cqcc = Mfcc(cqt; ncoeffs=20, rect=mlog, floor=1e-8)
+    @test size(get_data(cqcc)) == (length(frames), 20)
+    @test get_spec(cqcc) ≈ (dct_ortho(Float64, 84) * mlog.(max.(get_spec(cqt), 1e-8)))[1:20, :]
     lin = LinSpec(cqt; freqrange=(100, 4000))
     @test all(100 .<= get_freq(lin) .<= 4000)
     for D in (SpectralCentroid, SpectralCrest, SpectralDecrease, SpectralEntropy,

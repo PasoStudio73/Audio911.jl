@@ -1,6 +1,8 @@
 # ---------------------------------------------------------------------------- #
 #                      derived spectrograms on the same grid                   #
 # ---------------------------------------------------------------------------- #
+# The zero-padded median edges and the separated signals follow audioFlux's
+# mir/hpss_algorithm.c (MIT licence, Copyright (c) 2023 libAudioFlux).
 struct DerivedSetup <: AbstractSetup
     sr::Int64
     name::Symbol
