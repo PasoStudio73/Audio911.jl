@@ -28,11 +28,17 @@ function mel_to_hz(m::Real; htk::Bool=false)
 end
 
 """
-    hz_to_midi(f), midi_to_hz(n)
+    hz_to_midi(f)
 
-MIDI note number of a frequency (`69 + 12 log2(f/440)`) and back.
+MIDI note number of a frequency, `69 + 12 log2(f / 440)`.
 """
 hz_to_midi(f::Real) = 12 * (log2(f) - log2(440)) + 69
+
+"""
+    midi_to_hz(n)
+
+Frequency of a MIDI note number, `440 · 2^((n - 69) / 12)`.
+"""
 midi_to_hz(n::Real) = 440 * 2.0^((n - 69) / 12)
 
 const NOTE_NAMES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
@@ -66,11 +72,17 @@ function note_to_midi(note::AbstractString)
 end
 
 """
-    hz_to_note(f; kwargs...), note_to_hz(note)
+    hz_to_note(f; octave=true, cents=false)
 
-Note name of a frequency and frequency of a note name.
+Note name of a frequency (`440 -> "A4"`); see [`midi_to_note`](@ref).
 """
 hz_to_note(f::Real; kwargs...) = midi_to_note(hz_to_midi(f); kwargs...)
+
+"""
+    note_to_hz(note)
+
+Frequency of a note name (`"A4" -> 440`); see [`note_to_midi`](@ref).
+"""
 note_to_hz(note::AbstractString) = midi_to_hz(note_to_midi(note))
 
 """
@@ -97,20 +109,48 @@ cqt_frequencies(n::Int; fmin::Real, bins_per_octave::Int=12, tuning::Real=0) =
     [fmin * 2.0^((k + tuning) / bins_per_octave) for k in 0:n-1]
 
 """
-    frames_to_samples(i, hop; offset=0), samples_to_frames(n, hop; offset=0)
-    frames_to_time(i, hop, sr; offset=0), time_to_frames(t, hop, sr; offset=0)
-    samples_to_time(n, sr), time_to_samples(t, sr)
+    frames_to_samples(i, hop; offset=0)
 
-Conversions between frame indices (1-based), sample indices (1-based) and
-seconds. `offset` is the sample at which frame 1 starts (see
-[`get_offset`](@ref)); frame times are frame starts, use [`get_times`](@ref)
-for centres.
+First sample (1-based) of frame `i` (1-based) with hop `hop`. `offset` is
+the sample offset of frame 1 (see [`get_offset`](@ref)). Broadcasts over
+arrays of indices.
 """
 frames_to_samples(i, hop::Int; offset::Int=0) = @. (i - 1) * hop + offset + 1
+
+"""
+    samples_to_frames(n, hop; offset=0)
+
+Frame (1-based) that starts at or before sample `n` (1-based); inverse of
+[`frames_to_samples`](@ref).
+"""
 samples_to_frames(n, hop::Int; offset::Int=0) = @. fld(n - 1 - offset, hop) + 1
+
+"""
+    frames_to_time(i, hop, sr; offset=0)
+
+Start time in seconds of frame `i`. Use [`get_times`](@ref) for frame centres.
+"""
 frames_to_time(i, hop::Int, sr::Int; offset::Int=0) = @. ((i - 1) * hop + offset) / sr
+
+"""
+    time_to_frames(t, hop, sr; offset=0)
+
+Frame (1-based) that starts at or before time `t` in seconds.
+"""
 time_to_frames(t, hop::Int, sr::Int; offset::Int=0) = @. fld(round(Int, t * sr) - offset, hop) + 1
+
+"""
+    samples_to_time(n, sr)
+
+Time in seconds of sample `n` (1-based).
+"""
 samples_to_time(n, sr::Int) = @. (n - 1) / sr
+
+"""
+    time_to_samples(t, sr)
+
+Sample index (1-based) of time `t` in seconds.
+"""
 time_to_samples(t, sr::Int) = @. round(Int, t * sr) + 1
 
 # ---------------------------------------------------------------------------- #
@@ -150,20 +190,26 @@ amplitude_to_db(S::AbstractArray{T}; ref::Union{Real,Function}=1, amin::Real=1e-
     power_to_db(S .^ 2; ref=ref isa Function ? x -> ref(sqrt.(x))^2 : ref^2, amin=amin^2, top_db)
 
 """
-    db_to_power(D; ref=1), db_to_amplitude(D; ref=1)
+    db_to_power(D; ref=1)
 
-Inverses of [`power_to_db`](@ref) and [`amplitude_to_db`](@ref).
+Inverse of [`power_to_db`](@ref): `ref · 10^(D/10)`.
 """
 db_to_power(D::AbstractArray; ref::Real=1) = @. ref * 10^(D / 10)
+
+"""
+    db_to_amplitude(D; ref=1)
+
+Inverse of [`amplitude_to_db`](@ref): `ref · 10^(D/20)`.
+"""
 db_to_amplitude(D::AbstractArray; ref::Real=1) = @. ref * 10^(D / 20)
 
 # ---------------------------------------------------------------------------- #
 #                              perceptual weighting                            #
 # ---------------------------------------------------------------------------- #
 """
-    A_weighting(f; min_db=-80), C_weighting(f; min_db=-80)
+    A_weighting(f; min_db=-80)
 
-IEC 61672 A- and C-weighting curves in dB at frequency `f` (Hz), floored at `min_db`.
+IEC 61672 A-weighting curve in dB at frequency `f` (Hz), floored at `min_db`.
 """
 function A_weighting(f::Real; min_db::Maybe{Real}=-80)
     f2 = float(f)^2
@@ -173,6 +219,11 @@ function A_weighting(f::Real; min_db::Maybe{Real}=-80)
     return isnothing(min_db) ? w : max(w, min_db)
 end
 
+"""
+    C_weighting(f; min_db=-80)
+
+IEC 61672 C-weighting curve in dB at frequency `f` (Hz), floored at `min_db`.
+"""
 function C_weighting(f::Real; min_db::Maybe{Real}=-80)
     f2 = float(f)^2
     num = 12194^2 * f2
@@ -194,10 +245,10 @@ perceptual_weighting(S::AbstractMatrix, freq::AbstractVector; weighting::Functio
 #                                    mu-law                                    #
 # ---------------------------------------------------------------------------- #
 """
-    mu_compress(x; mu=255, quantize=true), mu_expand(x; mu=255, quantize=true)
+    mu_compress(x; mu=255, quantize=true)
 
-μ-law companding of a signal in `[-1, 1]` (librosa `mu_compress`/`mu_expand`).
-With `quantize=true` the compressed values are integers in `-(mu+1)/2 : (mu-1)/2`.
+μ-law compression of a signal in `[-1, 1]` (librosa `mu_compress`). With
+`quantize=true` the values are integers in `-(mu+1)/2 : (mu-1)/2`.
 """
 function mu_compress(x::AbstractArray{T}; mu::Real=255, quantize::Bool=true) where {T<:Real}
     y = @. sign(x) * log1p(mu * abs(x)) / log1p(mu)
@@ -205,6 +256,11 @@ function mu_compress(x::AbstractArray{T}; mu::Real=255, quantize::Bool=true) whe
     return @. floor(Int, (y + 1) / 2 * mu + 0.5) - (mu + 1) ÷ 2
 end
 
+"""
+    mu_expand(x; mu=255, quantize=true)
+
+Inverse of [`mu_compress`](@ref).
+"""
 function mu_expand(x::AbstractArray; mu::Real=255, quantize::Bool=true)
     y = quantize ? (@. (x + (mu + 1) ÷ 2) * 2 / mu - 1) : x
     return @. sign(y) * ((1 + mu)^abs(y) - 1) / mu

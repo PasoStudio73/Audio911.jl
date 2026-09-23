@@ -129,12 +129,27 @@ end
 # ---------------------------------------------------------------------------- #
 #                         scale convertions functions                          #
 # ---------------------------------------------------------------------------- #
+"""
+    htk
+
+Mel scale of HTK, `2595 log10(1 + f/700)` (MATLAB's `"oshaughnessy"`).
+Pass as `scale=htk` to [`auditory_fbank`](@ref) or [`MelSpec`](@ref).
+`htk(T, freqrange, nbands)` returns the `nbands + 2` band edges in Hz;
+`htk(hz)` maps frequencies to mel.
+"""
 const htk(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
     melrange = @. 2595 * log10(1 + T.(hz) / 700)
     melvec = LinRange(get_low(melrange), get_hi(melrange), nbands + 2)  
     return @. 700 * (exp10(melvec / 2595) - 1)
 end
 
+"""
+    slaney
+
+Slaney's mel scale (linear below 1 kHz, logarithmic above; librosa's
+default, MATLAB's `"slaney"`). Pass as `scale=slaney`. Same call forms as
+[`htk`](@ref).
+"""
 const slaney(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
     lin_step = T(200 / 3)
     cp_mel = T(1000 / lin_step)
@@ -147,6 +162,12 @@ const slaney(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
         1000 * exp(logstep * (melvec - cp_mel)))
 end
 
+"""
+    bark
+
+Traunmüller's bark scale with the corrections below 2 and above 20.1 bark
+(MATLAB's `"bark"`). Used by [`BarkSpec`](@ref); same call forms as [`htk`](@ref).
+"""
 const bark(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
     bark_val = @. 26.81 * hz / (1960 + hz) - 0.53
     barkrange = map(x -> x < 2 ?
@@ -183,8 +204,27 @@ const bark(hz::AbstractVector{<:AudioData}) =
 # ---------------------------------------------------------------------------- #
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #
+"""
+    area
+
+Filterbank normalisation dividing every filter by its area (sum of its
+weights); MATLAB `"area"`. Pass as `norm=area`.
+"""
 const area = (filterbank, bw) -> sum(filterbank, dims=2)
+
+"""
+    bandwidth
+
+Filterbank normalisation dividing every filter by half its bandwidth
+(MATLAB `"bandwidth"`, librosa's Slaney normalisation). Pass as `norm=bandwidth`.
+"""
 const bandwidth = (filterbank, bw) -> bw / 2
+
+"""
+    none_norm
+
+No filterbank normalisation (MATLAB `"none"`). Pass as `norm=none_norm`.
+"""
 const none_norm = (filterbank, bw) -> 1
 
 function normalize!(

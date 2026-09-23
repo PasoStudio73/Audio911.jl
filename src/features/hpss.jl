@@ -29,6 +29,11 @@ get_sr(d::DerivedSpec)       = d.info.sr
 get_parent(d::DerivedSpec)   = d.parent
 get_window(d::DerivedSpec)   = get_window(d.parent)
 get_nfft(d::DerivedSpec)     = get_nfft(d.parent)
+"""
+    get_name(d::DerivedSpec) -> Symbol
+
+What the derived spectrogram is (`:harmonic`, `:percussive`, `:gated`, `:pcen`).
+"""
 get_name(d::DerivedSpec)     = d.info.name
 get_frontend(d::DerivedSpec) = d
 _freq_indices(d::DerivedSpec, fr::FreqRange) = _freq_indices(d.parent, fr)
@@ -106,8 +111,25 @@ struct Hpss{H,P,T<:AudioData}
     mask_p     :: Matrix{T}
 end
 
+"""
+    get_harmonic(h::Hpss) -> DerivedSpec
+
+The harmonic component of an [`Hpss`](@ref) decomposition.
+"""
 get_harmonic(h::Hpss)   = h.harmonic
+
+"""
+    get_percussive(h::Hpss) -> DerivedSpec
+
+The percussive component of an [`Hpss`](@ref) decomposition.
+"""
 get_percussive(h::Hpss) = h.percussive
+
+"""
+    get_masks(h::Hpss) -> (mask_h, mask_p)
+
+The soft masks applied to the input spectrogram.
+"""
 get_masks(h::Hpss)      = (h.mask_h, h.mask_p)
 Base.show(io::IO, h::Hpss) = print(io, "Hpss(", h.harmonic, ", ", h.percussive, ")")
 

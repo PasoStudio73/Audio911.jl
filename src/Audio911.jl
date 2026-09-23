@@ -111,7 +111,18 @@ fr::FreqRange = (20, 20000)
 """
 const  FreqRange = Tuple{T, T} where {T<:Int64}
 
+"""
+    get_low(r), get_hi(r)
+
+Lower and upper bound of a [`FreqRange`](@ref) or [`ScaleRange`](@ref).
+"""
 get_low(r::FreqRange) = r[1]
+
+"""
+    get_hi(r)
+
+Upper bound of a [`FreqRange`](@ref) or [`ScaleRange`](@ref); see [`get_low`](@ref).
+"""
 get_hi(r::FreqRange)  = r[2]
 export FreqRange, get_low, get_hi
 
@@ -247,12 +258,11 @@ export get_window, get_winframes, get_winsize, get_energy
 
 # spectrogram related
 export get_freq, get_sr, get_nfft, get_spectrum
-export get_windows
 
 # filterbank related
 export get_bandwidth
 export get_nbands, get_scale, get_norm
-export get_freqrange, get_semitonerange
+export get_freqrange
 
 # cepstrum related
 export get_ncoeffs, raw_energy, spectrum_energy

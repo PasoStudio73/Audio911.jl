@@ -27,6 +27,7 @@ test_suites = [
     ("Features", ["features.jl"]),
     ("Signal utils", ["signal.jl"]),
     ("Plots", ["plots.jl"]),
+    ("Allocations", ["allocations.jl"]),
 ]
 
 @testset "Audio911.jl" begin

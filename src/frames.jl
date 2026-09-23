@@ -138,12 +138,20 @@ Base.eltype(::Frames{T}) where T = T
 Frame length in samples.
 """
 get_size(f::Frames)    = f.info.winsize
+
+"""
+    get_winsize(x) -> Int
+
+Frame length in samples of a stage (frames, front end or anything built
+from them).
+"""
 get_winsize(f::Frames) = f.info.winsize
 
 """
-    get_step(f::Frames) -> Int
+    get_step(x) -> Int
 
-Hop between consecutive frames in samples.
+Hop between consecutive frames in samples, for frames and every stage built
+from them.
 """
 get_step(f::Frames)    = f.info.winstep
 

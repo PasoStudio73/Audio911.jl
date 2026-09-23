@@ -28,28 +28,60 @@
 </p>
 </h2>
 
-**Audio911.jl** is your Swiss Army knife for extracting audio features in a simple and fast way.
-
-Inspired by MATLAB's audio feature extraction toolkit, Audio911.jl guarantees the same results while being designed to be modular, allowing you to connect various extraction algorithms as you prefer. It currently provides STFT, linear spectrograms, mel/bark/ERB spectrograms, and MFCC coefficients, with new algorithms being added constantly—so stay tuned!
+**Audio911.jl** extracts audio features for machine learning: spectrograms
+on linear, mel, bark and ERB scales, MFCC and GTCC cepstra in every
+published variant, deltas, spectral and temporal descriptors, chroma,
+onsets and tempo, harmonic/percussive separation, and the utilities around
+them. Where MATLAB's Audio Toolbox has a feature, Audio911 reproduces it
+numerically (the test suite checks against `audioFeatureExtractor`
+fixtures); where librosa has one, the coverage table in the docs says
+whether and how it is covered.
 
 ## Features
 
-### Time-Frequency Representations
-- **STFT**: Short-Time Fourier Transform with customizable windows
-- **Linear Spectrogram**: `LinSpec`
-- **Mel Spectrogram**: `MelSpec` (HTK and Slaney styles)
-- **Bark Spectrogram**: Auditory Bark scale
-- **ERB Spectrogram**: Equivalent Rectangular Bandwidth scale
+### Interchangeable pipeline
+Every stage is an immutable object built from the previous one, and every
+time-frequency front end implements the same interface, so an STFT and a
+wavelet scalogram feed the same mel filterbank, cepstrum and descriptors:
 
-### Coefficients
-- **MFCC**: Mel-Frequency Cepstral Coefficients with delta/delta-delta
-- **Customizable Rectification**: Log or cubic root
-- **Energy Options**: Standard or MFCC-based log energy
+```
+load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
+                             └─▶ Cwt ───┼─▶ LinSpec ─────────────▶ Spectral*
+                                        ├─▶ MelSpec / BarkSpec ─▶ Mfcc ─▶ Delta
+                                        ├─▶ ErbSpec ─────────────▶ Gtcc ─▶ Delta
+                                        └─▶ Chroma, Tonnetz, Contrast, Onset, Hpss, ...
+```
+
+### Time-frequency front ends
+- **STFT** (`Stft`): pre-planned real FFT streamed over lazy frames, threaded,
+  power or magnitude spectrum
+- **Wavelet scalogram** (`Cwt`): Morlet, Morse or bump wavelets, pooled on the
+  same frame grid as the STFT
+
+### Spectrograms and filterbanks
+- `LinSpec`, `MelSpec` (HTK or Slaney mel), `BarkSpec`, `ErbSpec` (gammatone)
+- filterbank design on any frequency grid: `auditory_fbank`, `gammatone_fbank`,
+  `chroma_fbank`, plus the integer-bin banks of ETSI and python_speech_features
+
+### Cepstra, in every variant
+- `Mfcc`, `Gtcc`, `Delta`, with every axis the literature differs on as a
+  keyword (rectification, floor, DCT scaling, liftering, C0, energy)
+- presets: `mfcc_matlab`, `mfcc_htk`, `mfcc_kaldi`, `mfcc_librosa`,
+  `mfcc_etsi`, `mfcc_psf`
+
+### Descriptors and features
+- eleven MATLAB spectral descriptors plus `SpectralBandwidth`, `Rms`, `Energy`,
+  `Zcr`, `Pitch` (NCF, YIN, cepstral), `HarmonicRatio`
+- `Chroma`, `Tonnetz`, `SpectralContrast`, `PolyFeatures`
+- `OnsetStrength`, `onset_detect`, `Tempogram`, `tempo`, `beat_track`
+- `Hpss` harmonic/percussive separation, `pcen`, `noisegate`, `SpectralGate`
+- unit conversions, dB scaling, weighting curves, synthesis, silence trimming, LPC
 
 ### Extras
-- **Modular Design**: Compose your own audio processing pipelines by chaining algorithms
-- **Multi-Format Audio**: Load WAV, FLAC, OGG and MP3 files with the built-in loader (libsndfile and mpg123), no external audio package needed
-- **On-the-Fly Resampling**: Built-in sample rate conversion
+- **Built-in audio loading**: WAV, FLAC, OGG and MP3 through libsndfile and
+  mpg123; in-memory arrays through `AudioFile(x, sr)`; resampling, mono, normalisation
+- **Plots recipes** for every stage (`using Plots; plot(mel)`), no Plots dependency
+- **Float32 end to end** and allocation-regression tests
 
 ## Installation
 
@@ -63,32 +95,41 @@ Pkg.add("Audio911")
 ```julia
 using Audio911
 
-# Load an audio file (automatically resampled to 16kHz)
-audio = load("speech.wav"; sr=16000, mono=true, norm=true)
+# Load an audio file (resampled to 16 kHz, mono, Float32)
+audio = load("speech.wav"; sr=16000)
 
-# Compute STFT
-stft = Stft(audiofile; win=movingwindow(winsize=512, winstep=256), type=hamming, periodic=true, spectrum=power)
+# Frames and STFT
+stft = Stft(audio; winsize=512, winstep=256, type=hamming, periodic=true, spectrum=power)
 
-# Generate Mel spectrogram
-mel_spec = MelSpec(stft; win_norm=true, nbands=32, norm=bandwidth, domain=:linear, scale=htk)
+# Mel spectrogram (MATLAB-compatible defaults)
+mel = MelSpec(stft; win_norm=true, nbands=32, norm=bandwidth, domain=:linear, scale=htk)
 
-# Extract MFCC coefficients
-mfcc = Mfcc(mel_spec; ncoeffs=30, rect=cubic_root)
+# MFCC and deltas
+mfcc  = Mfcc(mel; ncoeffs=13, rect=mlog)
+delta = Delta(mfcc)
 
-# Access the results
-mfcc_coeffs = get_data(mfcc)  # 13×N matrix of coefficients
+get_data(mfcc)      # frames × 13 matrix
+get_times(mfcc)     # frame centres in seconds
+
+# Same pipeline on a wavelet scalogram
+mfcc_w = Mfcc(MelSpec(Cwt(audio; winsize=512, winstep=256); nbands=32); ncoeffs=13)
+
+# A published recipe in one call
+k = mfcc_kaldi(audio)
+
+using Plots
+plot(mel; freq_scale=:log10)
 ```
 
 ## Learn More
 
-For a comprehensive understanding of Audio911.jl's capabilities, check out our **[tutorials in the documentation](https://aclai-lab/Audio911.jl/stable/tutorials/)**. The tutorials cover:
+The [documentation](https://aclai-lab.github.io/Audio911.jl/dev/) has a
+step-by-step tutorial, one page per stage, the pipeline design, the MFCC
+variants with their references, the librosa/MATLAB coverage table,
+before/after performance numbers and the full API reference.
 
-- **Step-by-step guide** for building complete audio processing pipelines
-- **Real-world examples** for speech recognition, music analysis, and environmental sound classification
-- **Best practices** for parameter selection and optimization
-- **Advanced techniques** including custom filterbank designs and feature engineering
-
-Each tutorial includes reproducible code examples with real audio files, so you can follow along and adapt the techniques to your own projects.
+Development: `test/run.sh test` runs the suite, `test/run.sh docs` builds
+the site, `test/run.sh bench` prints the benchmark.
 
 ## About
 

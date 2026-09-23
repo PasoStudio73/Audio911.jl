@@ -6,55 +6,33 @@ CurrentModule = Audio911
 <div align="center">
     <img src="../img/logo.png" alt="Audio911" width="600">
 </div>
-
-<h2 align="center">Audio Feature Extraction in Julia
-<p align="center">
-  <a href="https://github.com/aclai-lab/Audio911.jl/actions">
-    <img src="https://github.com/aclai-lab/Audio911.jl/workflows/CI/badge.svg"
-         alt="Build Status">
-  </a>
-  <a href="https://aclai-lab.github.io/Audio911.jl/dev/">
-    <img src="https://img.shields.io/badge/docs-dev-blue.svg"
-         alt="dev documentation">
-  </a>
-  <a href="https://aclai-lab.github.io/Audio911.jl/stable/">
-    <img src="https://img.shields.io/badge/docs-stable-blue.svg"
-         alt="stable documentation">
-  </a>
-  <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-yelllow"
-       alt="bibtex">
-  </a>
-  <a href="https://codecov.io/gh/aclai-lab/Audio911.jl">
-    <img src="https://codecov.io/gh/aclai-lab/Audio911.jl/branch/main/graph/badge.svg"
-       alt="CodeCov">
-  </a>
-</p>
-</h2>
 ```
 
-**Audio911.jl** is your Swiss Army knife for extracting audio features in a simple and fast way.
+# Audio911.jl
 
-Inspired by MATLAB's audio feature extraction toolkit, Audio911.jl guarantees the same results while being designed to be modular, allowing you to connect various extraction algorithms as you prefer. It currently provides STFT, linear spectrograms, mel/bark/ERB spectrograms, and MFCC coefficients, with new algorithms being added constantly—so stay tuned!
+**Audio911.jl** extracts audio features for machine learning in Julia:
+spectrograms on linear, mel, bark and ERB scales, MFCC and GTCC cepstra in
+every published variant, deltas, spectral and temporal descriptors, chroma,
+onsets, tempo, harmonic/percussive separation and the utilities around
+them, with numerical parity against MATLAB's Audio Toolbox where a fixture
+exists and a design that lets you swap the algorithm at every stage.
 
-## Features
+## Highlights
 
-### Time-Frequency Representations
-- **STFT**: Short-Time Fourier Transform with customizable windows
-- **Linear Spectrogram**: `LinSpec`
-- **Mel Spectrogram**: `MelSpec` (HTK and Slaney styles)
-- **Bark Spectrogram**: Auditory Bark scale
-- **ERB Spectrogram**: Equivalent Rectangular Bandwidth scale
-
-### Coefficients
-- **MFCC**: Mel-Frequency Cepstral Coefficients with delta/delta-delta
-- **Customizable Rectification**: Log or cubic root
-- **Energy Options**: Standard or MFCC-based log energy
-
-### Extras
-- **Modular Design**: Compose your own audio processing pipelines by chaining algorithms
-- **Multi-Format Audio**: Load WAV, FLAC, OGG and MP3 files with the built-in loader (libsndfile and mpg123), no external audio package needed
-- **On-the-Fly Resampling**: Built-in sample rate conversion
+- **Interchangeable front ends.** The short-time Fourier transform
+  ([`Stft`](@ref)) and the wavelet scalogram ([`Cwt`](@ref)) implement one
+  interface; every downstream stage (mel filterbanks, cepstra, descriptors)
+  accepts either. See the [pipeline design](@ref design).
+- **Every MFCC in the literature.** MATLAB, HTK, Kaldi, librosa, ETSI and
+  python_speech_features recipes are one call each, and every axis they
+  differ on is a keyword. See [MFCC variants](@ref mfcc_variants).
+- **librosa and MATLAB coverage.** Feature by feature, with the status of
+  each in the [coverage table](@ref coverage).
+- **Built-in audio loading.** WAV, FLAC, OGG and MP3 through libsndfile
+  and mpg123; in-memory arrays through [`AudioFile`](@ref).
+- **Plots recipes** for every stage, at no cost unless Plots is loaded.
+- **Lean and type stable.** Lazy frames, a streamed pre-planned FFT,
+  `Float32` end to end. See [performance](@ref performance).
 
 ## Installation
 
@@ -63,42 +41,39 @@ using Pkg
 Pkg.add("Audio911")
 ```
 
-## Quick Start
+## Quick start
 
 ```julia
 using Audio911
 
-# Load an audio file (automatically resampled to 16kHz)
-audio = load("speech.wav"; sr=16000, mono=true, norm=true)
+audio = load("speech.wav"; sr=16000)                       # Float32, mono, resampled
 
-# Compute STFT
-stft = Stft(audiofile; win=movingwindow(winsize=512, winstep=256), type=hamming, periodic=true, spectrum=power)
+stft  = Stft(audio; winsize=512, winstep=256, type=hamming)  # power spectrogram
+mel   = MelSpec(stft; nbands=32, freqrange=(100, 8000))     # mel filterbank
+mfcc  = Mfcc(mel; ncoeffs=13)                               # MATLAB-style MFCC
+delta = Delta(mfcc)
 
-# Generate Mel spectrogram
-mel_spec = MelSpec(stft; win_norm=true, nbands=32, norm=bandwidth, domain=:linear, scale=htk)
+get_data(mfcc)     # frames × 13
+get_times(mfcc)    # frame centres in seconds
 
-# Extract MFCC coefficients
-mfcc = Mfcc(mel_spec; ncoeffs=30, rect=cubic_root)
+# same pipeline on a wavelet scalogram
+mfcc_w = Mfcc(MelSpec(Cwt(audio; winsize=512, winstep=256); nbands=32); ncoeffs=13)
 
-# Access the results
-mfcc_coeffs = get_data(mfcc)  # 13×N matrix of coefficients
+using Plots
+plot(mel; freq_scale=:log10)
 ```
 
-## Learn More
+## Where to go next
 
-For a comprehensive understanding of Audio911.jl's capabilities, check out our **[tutorials in the documentation](https://aclai-lab/Audio911.jl/stable/tutorials/)**. The tutorials cover:
-
-- **Step-by-step guide** for building complete audio processing pipelines
-- **Real-world examples** for speech recognition, music analysis, and environmental sound classification
-- **Best practices** for parameter selection and optimization
-- **Advanced techniques** including custom filterbank designs and feature engineering
-
-Each tutorial includes reproducible code examples with real audio files, so you can follow along and adapt the techniques to your own projects.
+- [Tutorial](@ref tutorial): the whole pipeline step by step.
+- One page per stage: [Loading audio](@ref loading), [Frames](@ref frames),
+  [STFT](@ref stft), [Wavelets](@ref cwt), [Filterbanks](@ref filterbanks),
+  [Spectrograms](@ref spectrograms), [Cepstra](@ref cepstra),
+  [Descriptors](@ref descriptors), [Features](@ref features),
+  [Signal utilities](@ref signal), [Plotting](@ref plotting).
+- [API reference](@ref api).
 
 ## About
 
-Audio911.jl is developed by the [ACLAI Lab](https://aclai.unife.it/en/) @ University of Ferrara.
-
-## License
-
-MIT License
+Audio911.jl is developed by the [ACLAI Lab](https://aclai.unife.it/en/) at
+the University of Ferrara. MIT license.
