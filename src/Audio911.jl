@@ -274,6 +274,9 @@ export Rms, Energy, Zcr, Pitch, HarmonicRatio
 export zero_crossings, autocorrelate, pitch_ncf, pitch_yin, pitch_cep
 include("features/timedomain.jl")
 
+export pitch_pef, pitch_hps, pitch_lhs, pitch_stft
+include("features/pitch_af.jl")
+
 export Chroma, ChromaFBank, chroma_fbank, hz_to_octs, Tonnetz, SpectralContrast, PolyFeatures
 include("features/chroma.jl")
 

@@ -132,7 +132,7 @@ available offline.
 | `mfcc`, `mfccDelta`, `mfccDeltaDelta` | [`Mfcc`](@ref), [`Delta`](@ref) | parity |
 | `gtcc`, `gtccDelta`, `gtccDeltaDelta` | [`Gtcc`](@ref), [`Delta`](@ref) | parity |
 | `spectralCentroid`, `spectralCrest`, `spectralDecrease`, `spectralEntropy`, `spectralFlatness`, `spectralFlux`, `spectralKurtosis`, `spectralRolloffPoint`, `spectralSkewness`, `spectralSlope`, `spectralSpread` | `Spectral*` | parity (skewness structural) |
-| `pitch` | [`Pitch`](@ref) (`NCF`, `CEP`; `PEF`, `LHS`, `SRH` not implemented) | partial, structural |
+| `pitch` | [`Pitch`](@ref) (`NCF`, `CEP`, `PEF`, `LHS`, plus YIN, HPS and a spectral-peak method; `SRH` not implemented) | PEF/LHS parity with audioFlux, others structural |
 | `harmonicRatio` | [`HarmonicRatio`](@ref) | structural |
 | `zerocrossrate` | [`Zcr`](@ref) | structural |
 | `shortTimeEnergy` | [`Energy`](@ref) | structural |
@@ -155,7 +155,7 @@ available offline.
 | `noiseGate` | [`noisegate`](@ref); plus [`SpectralGate`](@ref) for a frequency range | structural |
 | `detectSpeech`, `voiceActivityDetector` | — | not implemented |
 | `integratedLoudness`, `loudnessMeter`, `splMeter` | — | not implemented |
-| `pitch` | [`Pitch`](@ref) | partial |
+| `pitch` | [`Pitch`](@ref) (`SRH` not implemented) | partial |
 | `harmonicRatio`, `zerocrossrate` | [`HarmonicRatio`](@ref), [`Zcr`](@ref) | structural |
 | `octaveFilterBank`, `gammatoneFilterBank` (time domain), `crossoverFilter` | — | not implemented (time-domain filter banks) |
 | `shiftPitch`, `stretchAudio`, `audioTimeScaler` | — | not implemented |

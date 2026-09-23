@@ -22,7 +22,7 @@ One value per frame. Spectral descriptors take any spectrogram (a
 | [`Rms`](@ref) | librosa `rms` (frames or spectrogram) |
 | [`Energy`](@ref) | MATLAB `shortTimeEnergy` |
 | [`Zcr`](@ref) | librosa `zero_crossing_rate`, MATLAB `zerocrossrate` |
-| [`Pitch`](@ref) with [`pitch_ncf`](@ref), [`pitch_yin`](@ref), [`pitch_cep`](@ref) | MATLAB `pitch` (NCF, CEP), librosa `yin` |
+| [`Pitch`](@ref) with [`pitch_ncf`](@ref), [`pitch_yin`](@ref), [`pitch_cep`](@ref), [`pitch_pef`](@ref), [`pitch_hps`](@ref), [`pitch_lhs`](@ref), [`pitch_stft`](@ref) | MATLAB `pitch` (NCF, CEP, PEF, LHS), librosa `yin`, audioFlux `PitchHPS`, `PitchSTFT` |
 | [`HarmonicRatio`](@ref) | MATLAB `harmonicRatio` |
 | [`OnsetStrength`](@ref) | librosa `onset_strength` |
 

@@ -286,13 +286,19 @@ function pitch_cep(x::AbstractVector{T}, sr::Int; range::FreqRange=(50, 400), th
     return T(sr / (_parabolic(c, k + 1) - 1))
 end
 
+# default threshold of every pitch method (a dB window for pitch_stft)
+_default_threshold(method) = method === pitch_yin ? 0.1 : method === pitch_stft ? 20.0 : 0.0
+
 @descriptor Pitch PitchSetup """
     Pitch(frames::Frames; method=pitch_ncf, range=(50, 400), threshold=...) -> Pitch
 
 Fundamental-frequency estimate of every frame in Hz, `0` when unvoiced.
 `method` is one of [`pitch_ncf`](@ref) (MATLAB's default), [`pitch_yin`](@ref)
-(librosa `yin`) or [`pitch_cep`](@ref); `range` bounds the search and
-`threshold` is passed to the method (defaults `0`, `0.1`, `0` respectively).
+(librosa `yin`), [`pitch_cep`](@ref), or the spectral methods ported from
+audioFlux [`pitch_pef`](@ref), [`pitch_hps`](@ref), [`pitch_lhs`](@ref) and
+[`pitch_stft`](@ref) (any function `(x, sr; range, threshold) -> f0` works);
+`range` bounds the search and `threshold` is passed to the method (defaults
+`0.1` for YIN, `20` dB for `pitch_stft`, `0` otherwise).
 
 ```julia
 f0 = Pitch(Frames(audio; winsize=1024, winstep=256); method=pitch_yin, range=(60, 500))
@@ -301,7 +307,7 @@ get_data(f0), get_times(f0)
 """
 function Pitch(frames::Frames{T}; method::Base.Callable=pitch_ncf, range::FreqRange=(50, 400),
                threshold::Maybe{Real}=nothing) where T
-    th = isnothing(threshold) ? (method === pitch_yin ? 0.1 : 0.0) : Float64(threshold)
+    th = isnothing(threshold) ? _default_threshold(method) : Float64(threshold)
     v  = _map_frames(x -> method(x, get_sr(frames); range, threshold=th), frames)
     return Pitch{typeof(frames),T}(v, frames, PitchSetup(get_sr(frames), method, range, th))
 end
