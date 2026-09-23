@@ -299,6 +299,9 @@ include("features/af_features.jl")
 export nmf
 include("classic/nmf.jl")
 
+export phase_vocoder, time_stretch, pitch_shift
+include("signal/stretch.jl")
+
 export viterbi, Hmm, hmm_predict, hmm_decode, hmm_train, hmm_generate
 include("classic/hmm.jl")
 

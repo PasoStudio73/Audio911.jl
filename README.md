@@ -102,6 +102,8 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
 - `Hpss` harmonic/percussive separation (spectrograms or signals), `nmf`,
   `viterbi` and discrete `Hmm`s, `pcen`, `noisegate`, `SpectralGate`
 - unit conversions, dB scaling, weighting curves, synthesis, silence trimming, LPC
+- `time_stretch`, `pitch_shift` and the `phase_vocoder`; band-limited sinc
+  resampling (`resample(...; method=:sinc)`)
 
 ### Extras
 - **Built-in audio loading**: WAV, FLAC, OGG and MP3 through libsndfile and

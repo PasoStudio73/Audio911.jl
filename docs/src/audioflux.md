@@ -161,9 +161,9 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 | HPSS by NMF (README) | — | named in the `HPSS` docstring and the README, but the snapshot has no NMF-based HPSS: `HPSS` is median filtering only, and `classic/nmf.c` is a plain factorisation | out of scope (no algorithm to port; a component classification on top of [`nmf`](@ref) would be a new design, not a port) | — |
 | `Harmonic.harmonic_count(low_fre, high_fre)` | — | STFT peaks in dB (shoulders under 2 dB merged) filtered by height (15 dB, or 12 dB above the adjacent peaks), proximity (30 Hz) and level (15 dB below the loudest or above -42 dB), counted strictly between `low` and `high`; undocumented constants, and in-place compactions that read rewritten neighbours | port: [`harmonic_count`](@ref), a literal translation (audioFlux's writes outside a frame are dropped) | fixture (identical counts on test.wav and on a tone with 3, 6 and 10 partials) |
 | `HarmonicRatio(low_fre)` | [`HarmonicRatio`](@ref) | audioFlux: normalised autocorrelation of the windowed frame zero-padded to twice its length, maximised from the first zero crossing of the autocorrelation (kept from the previous frame when there is none) up to `sr/low_fre`, lag energy one sample short of the overlap, quadratic interpolation; Audio911's (MATLAB) maximises over the lags of a frequency range | extend existing: `HarmonicRatio(frames; method=:audioflux, fmin)` | fixture |
-| `PitchShift(n_semitone)` | — | phase vocoder time stretch by `2^(n/12)` then resampling | port: [`pitch_shift`](@ref) | fixture |
-| `TimeStretch(rate)` | — | phase vocoder (`dsp/phase_vocoder.c`) and weighted overlap-add ISTFT | port: [`time_stretch`](@ref), [`phase_vocoder`](@ref), [`istft`](@ref) | fixture |
-| `TuneTrack` (C only, no Python wrapper) | — | instrument tuner: pitch tracking with note, cents, dB and stability outputs; 1700 lines of state machine | port structurally simplified: [`tune_track`](@ref) (YIN pitch to nearest note, cents deviation, median-smoothed) | structural |
+| `PitchShift(n_semitone)` | — | time stretch by `rate = 2^(-n/12)`, then the `FAST` sinc resampler at ratio `rate` with `is_scale` (division by `√rate`); integer semitones in `-12:12` only | port: [`pitch_shift`](@ref) (any real number of steps) | fixture (-5, 3 and 7 semitones, float32 agreement) |
+| `TimeStretch(rate)` | — | uncentred Hann STFT, phase vocoder (`dsp/phase_vocoder.c`) and weighted overlap-add ISTFT; the C call returns `round(n/rate)` samples, but the Python wrapper returns its whole `ceil(n/rate) + fft` buffer, whose tail holds unnormalised overlap-add values (up to ±50 on test.wav at rate 1.5) | port: [`time_stretch`](@ref) (returns the `round(n/rate)` meaningful samples), [`phase_vocoder`](@ref), [`istft`](@ref) | fixture (rates 0.5, 0.8, 1.5; float32 agreement) |
+| `TuneTrack` (C only, no Python wrapper) | — | instrument tuner: pitch tracking with note, cents, dB and stability outputs; a 1700-line undocumented state machine | out of scope (like `PitchFFP`: no published definition, no Python wrapper, and it is not built into the shipped `libaudioflux`, so there is no oracle; a simplified tuner would be a new design, not a port) | — |
 
 ## DSP utilities
 
@@ -173,8 +173,8 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 | `hilbert` (C only) | — | analytic signal through the FFT | port: [`hilbert`](@ref) | structural (analytic-signal identities) |
 | `Xcorr(normal_type none/coeff)` | [`autocorrelate`](@ref) (auto only) | full cross-correlation `2N−1` lags, optional `coeff` normalisation | port: [`xcorr`](@ref) | fixture |
 | `conv(mode full/same/valid, method auto/direct/fft)` (C only) | — | linear convolution | port: [`convolve`](@ref) | structural |
-| `Resample(quality best/mid/fast, is_scale)`, `WindowResample(zero_num, nbit, win_type, value, roll_off)` | [`resample`](@ref) (polyphase FIR) | audioFlux's `POLYPHASE` is a polyphase FIR (matches), `BANDLIMITED` is the CCRMA windowed-sinc with a lookup table | extend existing: `resample(...; method=:sinc, zeros, roll_off, window)` | fixture |
-| `phase_vocoder` | — | standard phase advance by `rate` on the complex STFT | port (with `time_stretch`) | fixture |
+| `Resample(quality best/mid/fast, is_scale)`, `WindowResample(zero_num, nbit, win_type, value, roll_off)` | [`resample`](@ref) (polyphase FIR) | Smith's band-limited interpolation with a `2^nbit`-per-crossing sinc table (resampy's `resample_f` and its `kaiser_best`/`kaiser_fast` filters); `floor(n · ratio)` samples | extend existing: `resample(...; method=:sinc, quality, nzeros, rolloff, window, beta, scale)` | fixture (three qualities down, up and to 11025 Hz, and a Hann `WindowResample`) |
+| `phase_vocoder` | — | linear magnitude interpolation between frames and phase accumulation of the expected advance plus the wrapped deviation, zeros past the last frame (librosa's) | port: [`phase_vocoder`](@ref) | fixture (through `time_stretch`) |
 | `auditory_weight_a/b/c/d` | [`A_weighting`](@ref), [`C_weighting`](@ref) | A and C: same IEC 61672 curves (audioFlux uses 12200 Hz for A instead of 12194, floored at −80 dB). B and D are new | extend existing: [`B_weighting`](@ref), [`D_weighting`](@ref) | fixture |
 | `dct`, `dft`, `fft` (internal) | FFTW, [`dct_ortho`](@ref) | internal helpers | already covered | — |
 | FIR/IIR design, `freqz` (`src/dsp/filterDesign_*`, internal) | DSP.jl | internal helpers not exposed in Python | out of scope (DSP.jl provides filter design) | — |
@@ -214,11 +214,11 @@ complex-spectrum accessor and `istft`; `Reassign`; `Synsq` and `Wsst`; the
 extra wavelets and grids of `Cwt`; `dwt`/`wpt`/`swt` with the wavelet
 tables; `Wvd`, `Cwd`, `emd`, `ewt`, `Hht`; the spectral descriptors;
 `Deconv`, `Cepstrogram`, `Ezr`, `xxcc_standard`; `Novelty`, the pitch
-methods, `harmonic_count`, the `HarmonicRatio` variant, HPSS signals, `nmf`, `Hmm`, `viterbi`, `tune_track`; `phase_vocoder`,
+methods, `harmonic_count`, the `HarmonicRatio` variant, HPSS signals, `nmf`, `Hmm`, `viterbi`; `phase_vocoder`,
 `time_stretch`, `pitch_shift`; `czt`, `hilbert`, `xcorr`, `convolve`, the
 sinc resampler, B/D weightings and the scaling utilities.
 
 Out of scope, with the reason given in the rows: the `Deep` spectrograms,
-`cqhc`, `PitchFFP`, `queue_fre*`, the NMF-based HPSS named only in a
+`cqhc`, `PitchFFP`, `TuneTrack`, `queue_fre*`, the NMF-based HPSS named only in a
 docstring, `is_continue` streaming, audio writing and the internal
 filter-design helpers.

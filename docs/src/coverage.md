@@ -45,11 +45,12 @@ available offline.
 | `load` | [`load`](@ref) | parity with MATLAB `audioread` |
 | `stream` | — | not implemented (streaming) |
 | `to_mono` | [`to_mono`](@ref) | done |
-| `resample` | [`resample`](@ref) (polyphase FIR, `DSP.resample`) | done |
+| `resample` | [`resample`](@ref) (polyphase FIR, `DSP.resample`; `method=:sinc` is resampy's `kaiser_best`/`kaiser_fast`) | done; `:sinc` parity with audioFlux `Resample` |
 | `get_duration`, `get_samplerate` | [`get_duration`](@ref), [`get_samplerate`](@ref) | done |
 | `stft` | [`Stft`](@ref) (power or magnitude; the complex STFT through [`get_complex`](@ref)) | parity |
 | `istft` | [`istft`](@ref) (weighted or plain overlap-add) | parity with audioFlux |
-| `griffinlim`, `phase_vocoder` | — | not implemented |
+| `phase_vocoder` | [`phase_vocoder`](@ref) | parity with audioFlux |
+| `griffinlim` | — | not implemented |
 | `reassigned_spectrogram` | [`Reassign`](@ref), [`get_reassigned`](@ref) | parity with audioFlux `reassign` |
 | `cqt`, `vqt` | [`Cqt`](@ref) (spectral-kernel CQT, `gamma` for the VQT) | parity with audioFlux (top octave exact) |
 | `hybrid_cqt`, `pseudo_cqt`, `iirt` | [`Cqt`](@ref) covers the same representation; the hybrid/pseudo evaluation shortcuts and the IIR filterbank are not reproduced | partial |
@@ -82,7 +83,7 @@ available offline.
 | librosa | Audio911 | status |
 |:--------|:---------|:-------|
 | `hpss`, `harmonic`, `percussive` | [`Hpss`](@ref) with [`get_harmonic_signal`](@ref), [`get_percussive_signal`](@ref) | parity with audioFlux `HPSS` (zero-padded edges) |
-| `time_stretch`, `pitch_shift` | — | not implemented |
+| `time_stretch`, `pitch_shift` | [`time_stretch`](@ref), [`pitch_shift`](@ref) | parity with audioFlux `TimeStretch`, `PitchShift` |
 | `remix` | — | not implemented |
 | `trim`, `split` | [`trim_silence`](@ref), [`split_silence`](@ref) | done |
 | `preemphasis`, `deemphasis` | [`preemphasis`](@ref), [`deemphasis`](@ref) | done |

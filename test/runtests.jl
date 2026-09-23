@@ -43,6 +43,7 @@ test_suites = [
     ("NMF", ["nmf_af.jl"]),
     ("HMM and Viterbi", ["hmm_af.jl"]),
     ("Harmonic count", ["harmonic_af.jl"]),
+    ("Time stretch and pitch shift", ["stretch_af.jl"]),
 ]
 
 @testset "Audio911.jl" begin

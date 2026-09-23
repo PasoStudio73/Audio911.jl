@@ -25,4 +25,24 @@ Small functions that librosa and MATLAB users expect around the pipeline.
 - Silence: [`trim_silence`](@ref), [`split_silence`](@ref).
 - Synthesis: [`tone`](@ref), [`chirp`](@ref), [`clicks`](@ref).
 - Analysis: [`autocorrelate`](@ref), [`zero_crossings`](@ref), [`lpc`](@ref).
-- Files: [`get_samplerate`](@ref), [`resample`](@ref), [`to_mono`](@ref).
+- Files: [`get_samplerate`](@ref), [`resample`](@ref) (polyphase FIR, or
+  `method=:sinc` for audioFlux's band-limited sinc interpolation with its
+  `:best`, `:mid` and `:fast` Kaiser filters), [`to_mono`](@ref).
+- Hilbert transform: [`hilbert`](@ref).
+
+## Time and pitch modification
+
+[`time_stretch`](@ref) changes the duration of a signal by `1 / rate`
+through the [`phase_vocoder`](@ref) and the overlap-add [`istft`](@ref);
+[`pitch_shift`](@ref) moves the pitch by a number of semitones, a time
+stretch followed by band-limited resampling. Both are ports of audioFlux's
+`TimeStretch` and `PitchShift` and agree with them to float32 precision
+(`test/stretch_af.jl`); they take vectors or an [`AudioFile`](@ref).
+
+```julia
+slow   = time_stretch(x, 0.5)                  # twice as long, same pitch
+up     = pitch_shift(x, 3)                     # three semitones up, same length
+audio2 = pitch_shift(audio, -2)                # every channel of an AudioFile
+y8k    = Audio911.resample(x, 16000, 8000; method=:sinc, quality=:best)
+C2     = phase_vocoder(get_complex(stft), 1.5; hop=get_step(stft))
+```

@@ -33,14 +33,33 @@ function normalize_peak(x::AbstractArray{T}) where {T<:Real}
 end
 
 """
-    resample(x, sr, new_sr) -> Array
+    resample(x, sr, new_sr; method=:polyphase, quality=:best, nzeros=nothing, rolloff=nothing,
+             window=kaiser, beta=nothing, scale=false) -> Array
 
-Resample a `frames × channels` signal from `sr` to `new_sr` Hz with a
-polyphase FIR (rational ratio `new_sr // sr`). The element type is kept.
+Resample a `frames × channels` signal from `sr` to `new_sr` Hz. The element
+type is kept.
+
+- `method=:polyphase`: polyphase FIR with the rational ratio `new_sr // sr`
+  (DSP.jl).
+- `method=:sinc`: band-limited windowed-sinc interpolation (Smith; audioFlux
+  `Resample` and `WindowResample`, resampy). `quality` picks audioFlux's
+  presets, `:best` (64 zero crossings, Kaiser β 14.77, roll-off 0.948),
+  `:mid` (32, 11.66, 0.899) or `:fast` (16, 8.56, 0.85); `nzeros`,
+  `rolloff`, `window` (a symmetric window, see [`Frames`](@ref)) and `beta`
+  (the Kaiser β) override them. The output has `floor(n · new_sr / sr)`
+  samples; `scale=true` divides it by `√(new_sr / sr)` (audioFlux `is_scale`).
 """
-function resample(x::AbstractArray{T}, sr::Int, new_sr::Int) where {T<:Real}
+function resample(x::AbstractArray{T}, sr::Int, new_sr::Int; method::Symbol=:polyphase, scale::Bool=false,
+                  kwargs...) where {T<:Real}
     sr == new_sr && return x
     sr > 0 && new_sr > 0 || throw(ArgumentError("sample rates must be positive, got $sr and $new_sr"))
+    if method === :sinc
+        ratio = new_sr / sr
+        x isa AbstractVector && return T.(_resample_sinc(x, ratio; scale, kwargs...))
+        return T.(reduce(hcat, [_resample_sinc(c, ratio; scale, kwargs...) for c in eachcol(x)]))
+    end
+    method === :polyphase || throw(ArgumentError("method must be :polyphase or :sinc, got :$method"))
+    (isempty(kwargs) && !scale) || throw(ArgumentError("quality, nzeros, rolloff, window, beta and scale only apply to method=:sinc"))
     y = DSP.resample(x, Rational(new_sr, sr); dims=1)
     return eltype(y) === T ? y : T.(y)
 end
