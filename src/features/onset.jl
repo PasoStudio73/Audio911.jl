@@ -63,9 +63,10 @@ end
 """
     peak_pick(x; pre_max, post_max, pre_avg, post_avg, delta, wait) -> Vector{Int}
 
-Indices `n` such that `x[n]` is the maximum of `x[n-pre_max : n+post_max]`,
-`x[n] ≥ mean(x[n-pre_avg : n+post_avg]) + delta`, and at least `wait`
-samples after the previous pick (librosa `peak_pick`).
+Indices `n` such that `x[n]` is the maximum of `x[n-pre_max : n+post_max-1]`,
+`x[n] ≥ mean(x[n-pre_avg : n+post_avg-1]) + delta`, and more than `wait`
+samples after the previous pick (librosa `peak_pick`, whose windows end
+before `n + post_max`; audioFlux's onset peak picking is the same rule).
 """
 function peak_pick(x::AbstractVector{T}; pre_max::Int, post_max::Int, pre_avg::Int, post_avg::Int,
                    delta::Real, wait::Int) where {T<:Real}
@@ -73,10 +74,10 @@ function peak_pick(x::AbstractVector{T}; pre_max::Int, post_max::Int, pre_avg::I
     peaks = Int[]
     last = -wait - 1
     @inbounds for i in 1:n
-        lo, hi = max(1, i - pre_max), min(n, i + post_max)
-        x[i] == maximum(view(x, lo:hi)) || continue
-        alo, ahi = max(1, i - pre_avg), min(n, i + post_avg)
-        x[i] >= mean(view(x, alo:ahi)) + delta || continue
+        lo, hi = max(1, i - pre_max), min(n, i + post_max - 1)
+        x[i] == maximum(view(x, lo:max(hi, i))) || continue
+        alo, ahi = max(1, i - pre_avg), min(n, i + post_avg - 1)
+        x[i] >= mean(view(x, alo:max(ahi, i))) + delta || continue
         i - last > wait || continue
         push!(peaks, i)
         last = i
@@ -85,15 +86,17 @@ function peak_pick(x::AbstractVector{T}; pre_max::Int, post_max::Int, pre_avg::I
 end
 
 """
-    onset_detect(env::OnsetStrength; delta=0.07, normalize=true, kwargs...) -> Vector{Int}
+    onset_detect(env; delta=0.07, normalize=true, kwargs...) -> Vector{Int}
 
-Frame indices of the onsets picked from an onset-strength envelope with
-[`peak_pick`](@ref) (librosa `onset_detect` defaults: `pre_max` 30 ms,
-`post_max` 1 frame, `pre_avg`/`post_avg` 100 ms, `wait` 30 ms). The envelope
-is normalised to its maximum first when `normalize=true`. Use
+Frame indices of the onsets picked from an onset envelope (an
+[`OnsetStrength`](@ref), a [`Novelty`](@ref) or any one-value-per-frame
+descriptor) with [`peak_pick`](@ref), with librosa's and audioFlux's
+defaults: `pre_max` 30 ms, `post_max` 1 frame, `pre_avg` 100 ms,
+`post_avg` 100 ms + 1 frame, `wait` 30 ms, each rounded down to frames. The
+envelope is normalised to its maximum first when `normalize=true`. Use
 `get_times(env)[idx]` for the onset times in seconds.
 """
-function onset_detect(env::OnsetStrength; delta::Real=0.07, normalize::Bool=true,
+function onset_detect(env::AbstractSpectral; delta::Real=0.07, normalize::Bool=true,
                       pre_max::Maybe{Int}=nothing, post_max::Maybe{Int}=nothing,
                       pre_avg::Maybe{Int}=nothing, post_avg::Maybe{Int}=nothing, wait::Maybe{Int}=nothing)
     fps = get_sr(env) / get_step(env)
@@ -103,11 +106,57 @@ function onset_detect(env::OnsetStrength; delta::Real=0.07, normalize::Bool=true
         m > 0 && (x = x ./ m)
     end
     return peak_pick(x;
-        pre_max=something(pre_max, round(Int, 0.03fps)),
-        post_max=something(post_max, round(Int, 0.0fps) + 1),
-        pre_avg=something(pre_avg, round(Int, 0.10fps)),
-        post_avg=something(post_avg, round(Int, 0.10fps) + 1),
-        delta, wait=something(wait, round(Int, 0.03fps)))
+        pre_max=something(pre_max, floor(Int, 0.03fps)),
+        post_max=something(post_max, floor(Int, 0.0fps) + 1),
+        pre_avg=something(pre_avg, floor(Int, 0.10fps)),
+        post_avg=something(post_avg, floor(Int, 0.10fps) + 1),
+        delta, wait=something(wait, floor(Int, 0.03fps)))
+end
+
+# ---------------------------------------------------------------------------- #
+#                            novelty onset envelopes                           #
+# ---------------------------------------------------------------------------- #
+struct NoveltySetup <: AbstractSetup
+    sr::Int64
+    method::Base.Callable
+    filter_order::Int64
+end
+
+const _PHASE_NOVELTIES = (SpectralPd, SpectralWpd, SpectralNwpd, SpectralCd, SpectralRcd)
+
+@descriptor Novelty NoveltySetup """
+    Novelty(spec; method=SpectralFlux, filter_order=1, kwargs...) -> Novelty
+
+Onset envelope from any spectral novelty, audioFlux's `Onset`: `method` is
+one of [`SpectralFlux`](@ref) (audioFlux's `FLUX`), [`SpectralHfc`](@ref),
+[`SpectralSd`](@ref), [`SpectralSf`](@ref), [`SpectralMkl`](@ref),
+[`SpectralBroadband`](@ref), the phase and complex-domain deviations
+[`SpectralPd`](@ref), [`SpectralWpd`](@ref), [`SpectralNwpd`](@ref),
+[`SpectralCd`](@ref), [`SpectralRcd`](@ref), or any other descriptor, called
+with `kwargs`. With `filter_order > 1` the spectrogram is first replaced by
+its running maximum over `filter_order` bins (not for the phase methods).
+The envelope is scaled to `[0, 1]` (minus its minimum, over its maximum);
+[`onset_detect`](@ref) picks the onsets.
+
+```julia
+mel = MelSpec(stft; nbands=128)
+env = Novelty(mel; method=SpectralFlux, p=1, positive=true, root=false)   # audioFlux's FLUX
+env = Novelty(Stft(audio; keep_complex=true); method=SpectralCd)
+idx = onset_detect(env)
+```
+"""
+function Novelty(s::AbstractSpectrogram; method=SpectralFlux, filter_order::Int=1, kwargs...)
+    filter_order ≥ 1 || throw(ArgumentError("filter_order must be ≥ 1"))
+    T = eltype(s)
+    src = s
+    if filter_order > 1 && !(method in _PHASE_NOVELTIES)
+        src = _derived(s, _max_filter_freq(get_spec(s), filter_order), :maxfiltered)
+    end
+    v = Vector{T}(get_data(method(src; kwargs...)))
+    lo, hi = extrema(v)
+    v .-= lo
+    hi - lo > 0 && (v ./= hi - lo)
+    return Novelty{typeof(s),T}(v, s, NoveltySetup(get_sr(s), method, filter_order))
 end
 
 # ---------------------------------------------------------------------------- #

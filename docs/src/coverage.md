@@ -103,7 +103,7 @@ available offline.
 | librosa | Audio911 | status |
 |:--------|:---------|:-------|
 | `onset_strength`, `onset_strength_multi` | [`OnsetStrength`](@ref) (single channel) | structural |
-| `onset_detect` | [`onset_detect`](@ref), [`peak_pick`](@ref) | structural |
+| `onset_detect` | [`onset_detect`](@ref), [`peak_pick`](@ref) (librosa's exclusive window ends) | fixture through audioFlux's `Onset`, which uses the same peak picking |
 | `onset_backtrack` | — | not implemented |
 | `beat.tempo` | [`tempo`](@ref) | structural |
 | `beat.beat_track` | [`beat_track`](@ref) | structural |

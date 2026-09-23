@@ -18,13 +18,17 @@ front-end interface.
 ## Rhythm
 
 - [`OnsetStrength`](@ref): spectral-flux envelope (use a `MelSpec` to match librosa).
-- [`onset_detect`](@ref), [`peak_pick`](@ref): onset frames.
+- [`Novelty`](@ref): audioFlux's onset envelope from any spectral novelty
+  (flux, HFC, spectral difference, phase or complex-domain deviation, ...).
+- [`onset_detect`](@ref), [`peak_pick`](@ref): onset frames from either envelope.
 - [`Tempogram`](@ref), [`tempo`](@ref): local auto-correlation and global tempo.
 - [`beat_track`](@ref): dynamic-programming beat tracking.
 
 ```julia
 env = OnsetStrength(MelSpec(Stft(audio; winsize=2048, winstep=512, center=true); nbands=64))
 onsets = get_times(env)[onset_detect(env)]
+nov = Novelty(Stft(audio; winsize=512, winstep=256, keep_complex=true); method=SpectralCd)
+onsets_cd = get_times(nov)[onset_detect(nov)]
 bpm, beats = beat_track(env)
 ```
 

@@ -38,6 +38,7 @@ test_suites = [
     ("audioFlux spectral descriptors", ["spectral_af.jl"]),
     ("audioFlux features", ["af_features.jl"]),
     ("Pitch estimators", ["pitch_af.jl"]),
+    ("Novelty onsets", ["onset_af.jl"]),
 ]
 
 @testset "Audio911.jl" begin

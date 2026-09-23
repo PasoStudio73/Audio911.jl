@@ -283,7 +283,7 @@ include("features/chroma.jl")
 export cqt_chroma_fbank
 include("features/cqt_chroma.jl")
 
-export OnsetStrength, peak_pick, onset_detect, Tempogram, tempo, beat_track
+export OnsetStrength, peak_pick, onset_detect, Tempogram, tempo, beat_track, Novelty
 include("features/onset.jl")
 
 export DerivedSpec, Hpss, get_harmonic, get_percussive, get_masks, get_name
