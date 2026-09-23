@@ -33,6 +33,7 @@ makedocs(;
         ],
         "MFCC variants"   => "mfcc_variants.md",
         "Feature coverage" => "coverage.md",
+        "audioFlux inventory" => "audioflux.md",
         "Performance"     => "performance.md",
         "API reference"   => "api.md",
     ],
