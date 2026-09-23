@@ -197,6 +197,10 @@ export mlog, nlog, cubic_root, db
 export dct_ortho, dct_htk, dct_plain
 include("fft/mfcc.jl")
 
+export mfcc_matlab, mfcc_htk, mfcc_kaldi, mfcc_librosa, mfcc_etsi, mfcc_psf
+export etsi_fbank, psf_fbank, offset_compensation
+include("fft/mfcc_variants.jl")
+
 export Delta
 include("fft/delta.jl")
 

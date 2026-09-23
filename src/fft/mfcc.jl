@@ -116,6 +116,7 @@ struct MfccSetup <: AbstractSetup
     first         :: Int64
     energy        :: Maybe{Base.Callable}
     energy_mode   :: Symbol
+    energy_floor  :: Float64
     top_db        :: Maybe{Float64}
 end
 
@@ -212,6 +213,7 @@ function _cepstrum(
     first         :: Int64=0,
     energy        :: Maybe{Base.Callable}=nothing,
     energy_mode   :: Symbol=:replace,
+    energy_floor  :: Maybe{Real}=nothing,
     top_db        :: Maybe{Real}=nothing,
 )
     T  = eltype(spec)
@@ -257,9 +259,10 @@ function _cepstrum(
     end
 
     # log energy
+    efl = isnothing(energy_floor) ? eps(T) : T(energy_floor)
     if !isnothing(energy)
         e  = energy(spec)
-        le = T[log(max(T(v), eps(T))) for v in e]
+        le = T[log(max(T(v), efl)) for v in e]
         if energy_mode == :replace
             C[1, :] .= le
         else
@@ -269,7 +272,8 @@ function _cepstrum(
 
     info = MfccSetup(get_sr(spec), ncoeffs, rect, dither,
                      Float64(fl), dct, lifter, lifter_offset, first,
-                     energy, energy_mode, isnothing(top_db) ? nothing : Float64(top_db))
+                     energy, energy_mode, Float64(efl),
+                     isnothing(top_db) ? nothing : Float64(top_db))
     return C, info
 end
 
@@ -300,6 +304,8 @@ combined with a log-energy term.
   energy term
 - `energy_mode::Symbol=:replace`: `:replace` C0 with the log energy (Kaldi,
   python_speech_features) or `:append` it as a last coefficient (HTK `_E`)
+- `energy_floor::Real=eps(T)`: floor applied to the energy before its log
+  (`exp(-50)` in ETSI)
 - `top_db::Real`: clip the rectified bands to `max - top_db` (librosa's
   `power_to_db(top_db=80)`), for `rect=db`
 

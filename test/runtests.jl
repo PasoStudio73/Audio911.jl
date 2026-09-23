@@ -23,6 +23,7 @@ test_suites = [
     ("Gtcc", ["gtcc.jl",]),
     ("Spectral", ["spectral.jl"]),
     ("Pipeline", ["pipeline.jl"]),
+    ("Mfcc variants", ["mfcc_variants.jl"]),
 ]
 
 @testset "Audio911.jl" begin

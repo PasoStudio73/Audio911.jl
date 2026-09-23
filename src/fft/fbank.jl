@@ -138,12 +138,13 @@ end
 const slaney(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
     lin_step = T(200 / 3)
     cp_mel = T(1000 / lin_step)
+    logstep = T(log(6.4) / 27)
     hz_T = T.(hz)
     melrange = @. ifelse(hz_T < 1000, hz_T / lin_step,
-        log(hz_T * 0.001) / (log(6.4) / 27) + (1000 / lin_step))  
-    melvec = LinRange(get_low(melrange), get_hi(melrange), nbands + 2)        
+        log(hz_T * T(0.001)) / logstep + cp_mel)
+    melvec = LinRange(get_low(melrange), get_hi(melrange), nbands + 2)
     return @. ifelse(melvec < cp_mel, melvec * lin_step,
-        1000 * exp(log(6.4) / 27 * (melvec - cp_mel)))
+        1000 * exp(logstep * (melvec - cp_mel)))
 end
 
 const bark(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin

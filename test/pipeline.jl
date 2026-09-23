@@ -258,3 +258,28 @@ end
     @test size(get_data(dt)) == size(get_data(m0))
     @test_throws ArgumentError Delta(m0; source=:bogus)
 end
+
+# ---------------------------------------------------------------------------- #
+#                           pad_end, scale, energy_floor                       #
+# ---------------------------------------------------------------------------- #
+@testset "pad_end, scale, energy_floor" begin
+    audio = Audio911.load(wav_file; format=Float64)
+    x = vec(get_data(audio)); n = length(x)
+    fp = Frames(audio; winsize=400, winstep=160, pad_end=true)
+    @test length(fp) == 1 + cld(n - 400, 160)
+    @test length(fp) ≥ length(Frames(audio; winsize=400, winstep=160))
+    last = get_data(fp)[:, end]
+    @test last[1] == x[(length(fp) - 1) * 160 + 1]
+    @test all(last[end - (length(fp) - 1) * 160 - 400 + n + 1:end] .== 0)
+    short = Frames(x[1:100], 16000; winsize=400, winstep=160, pad_end=true)
+    @test length(short) == 1 && get_data(short)[101:end, 1] == zeros(300)
+
+    st  = Stft(audio; winsize=512, winstep=256)
+    st2 = Stft(audio; winsize=512, winstep=256, scale=1 / 512)
+    @test get_spec(st2) ≈ get_spec(st) ./ 512
+    @test get_setup(st2).scale == 1 / 512
+
+    mel = MelSpec(st; nbands=20)
+    me = Mfcc(mel; ncoeffs=13, energy=raw_energy, energy_floor=1e3)
+    @test all(get_spec(me)[1, :] .>= log(1e3))
+end

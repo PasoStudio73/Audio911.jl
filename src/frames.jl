@@ -102,6 +102,7 @@ struct FramesSetup <: AbstractSetup
     pad_mode   :: Symbol
     preemph    :: Float64
     dc_removal :: Bool
+    pad_end    :: Bool
     offset     :: Int64
 end
 
@@ -333,9 +334,12 @@ A multi-channel matrix is averaged to mono first.
   (`0.97` is the usual value; `0` disables it)
 - `dc_removal::Bool=false`: subtract the mean of every frame (Kaldi's
   `remove_dc_offset`)
+- `pad_end::Bool=false`: zero-pad the end of the signal so that a trailing
+  segment shorter than `winsize` still yields a frame (python_speech_features)
 
 Frames are taken from the start of the signal with the given hop; a trailing
-segment shorter than `winsize` is dropped (MATLAB behaviour).
+segment shorter than `winsize` is dropped (MATLAB behaviour) unless
+`pad_end=true`.
 
 # Examples
 ```julia
@@ -362,6 +366,7 @@ function Frames(
     pad_mode   :: Symbol=:constant,
     preemph    :: Real=0,
     dc_removal :: Bool=false,
+    pad_end    :: Bool=false,
 )
     winsize, winstep = _winparams(win, winsize, winstep)
     x = _to_mono(audio)
@@ -381,13 +386,19 @@ function Frames(
     end
 
     n = length(x)
+    if pad_end
+        # enough zeros for the last partial frame to become a full one
+        nfr = n ≤ winsize ? 1 : 1 + cld(n - winsize, winstep)
+        need = (nfr - 1) * winstep + winsize
+        need > n && (x = vcat(x, zeros(T, need - n)); n = need)
+    end
     n ≥ winsize || throw(ArgumentError(
         "Audio length ($n samples) is shorter than window size ($winsize)"))
 
     starts = 1:winstep:(n - winsize + 1)
     window = _make_window(T, type, winsize, periodic)
     info   = FramesSetup(sr, winsize, winstep, type, periodic, center, pad_mode,
-                         Float64(preemph), dc_removal, offset)
+                         Float64(preemph), dc_removal, pad_end, offset)
 
     return Frames{T}(x, starts, window, info)
 end

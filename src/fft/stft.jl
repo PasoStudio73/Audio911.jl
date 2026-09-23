@@ -10,6 +10,7 @@ struct StftSetup{T<:AudioData} <: AbstractSetup
     spectrum :: Base.Callable
     window   :: Vector{T}
     offset   :: Int64
+    scale    :: Float64
 end
 
 # ---------------------------------------------------------------------------- #
@@ -206,6 +207,8 @@ plus a few `nfft`-length buffers.
 - `nfft::Int`: FFT size, must be `≥ winsize` (default: `winsize`). Zero
   padding interpolates the spectrum; frequency spacing is `sr / nfft`.
 - `spectrum::Base.Callable`: `power` (default) or `magnitude`
+- `scale::Real=1`: multiply the spectrum by a constant (`1/nfft` reproduces
+  python_speech_features' `powspec`)
 
 # Throws
 `ArgumentError` if `nfft < winsize` or the frames do not overlap.
@@ -224,6 +227,7 @@ function Stft(
     frames   :: Frames{T};
     nfft     :: Int64=get_winsize(frames),
     spectrum :: Base.Callable=power,
+    scale    :: Real=1,
 ) where {T<:AudioData}
     sr      = get_sr(frames)
     winsize = get_winsize(frames)
@@ -240,10 +244,11 @@ function Stft(
 
     spec = Matrix{T}(undef, _onesided_length(nfft), length(frames))
     _stft!(spec, frames, nfft, spectrum)
+    scale == 1 || (spec .*= T(scale))
 
     freq = (0:size(spec, 1)-1) .* (T(sr) / T(nfft))
     info = StftSetup{T}(sr, nfft, winsize, get_step(frames), overlap, spectrum,
-                        get_window(frames), get_offset(frames))
+                        get_window(frames), get_offset(frames), Float64(scale))
 
     return Stft{T}(spec, freq, frames, info)
 end
@@ -273,9 +278,10 @@ function Stft(
     pad_mode   :: Symbol=:constant,
     preemph    :: Real=0,
     dc_removal :: Bool=false,
+    pad_end    :: Bool=false,
     kwargs...
 )
-    frames = Frames(audio, sr; winsize, winstep, win, type, periodic, center, pad_mode, preemph, dc_removal)
+    frames = Frames(audio, sr; winsize, winstep, win, type, periodic, center, pad_mode, preemph, dc_removal, pad_end)
     return Stft(frames; kwargs...)
 end
 
