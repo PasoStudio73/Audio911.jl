@@ -8,20 +8,15 @@ function Audio911.plot(s::AbstractSpectrogram;
     clims::Union{Nothing,Tuple}=nothing,
     kwargs...)
     
-    spec = get_data(s)
+    spec = get_spec(s)
     T    = eltype(spec)
     freq = collect(get_freq(s))
-    sr   = get_sr(s)
-    winsize = get_winsize(s)
-    overlap = get_overlap(s)
 
     first_bin = findfirst(f -> f > 0, freq)
     spec = spec[first_bin:end, :]
     freq = freq[first_bin:end]
-    
-    hop_size = winsize - overlap
-    nframes = size(spec, 2)
-    time = (0:nframes-1) .* (hop_size / sr)
+
+    time = collect(get_times(s))
     
     plot_data = db ? 10 .* log10.(spec .+ eps(T)) : spec
     

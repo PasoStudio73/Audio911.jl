@@ -1,13 +1,15 @@
 # ---------------------------------------------------------------------------- #
 #                                    info                                      #
 # ---------------------------------------------------------------------------- #
-struct StftSetup <: AbstractSetup
+struct StftSetup{T<:AudioData} <: AbstractSetup
     sr       :: Int64
     nfft     :: Int64
     winsize  :: Int64
+    winstep  :: Int64
     overlap  :: Int64
     spectrum :: Base.Callable
-    window   :: Vector{<:Real}
+    window   :: Vector{T}
+    offset   :: Int64
 end
 
 # ---------------------------------------------------------------------------- #
@@ -16,55 +18,20 @@ end
 """
     Stft{T} <: AbstractSpectrogram
 
-A concrete implementation of `AbstractSpectrogram` that stores Short-Time Fourier Transform 
-(STFT) data and associated metadata.
+Short-time Fourier transform of a [`Frames`](@ref) object: a one-sided
+`power` or `magnitude` spectrogram stored as `bins × frames`, its frequency
+axis (`sr/nfft` apart) and an `info` record (sample rate, `nfft`, window,
+hop). It is the default time-frequency front end of the pipeline; see
+[`Cwt`](@ref) for the wavelet alternative.
 
-# Type Parameters
-- `F`: Source type that generated this STFT (e.g., `Frames`)
-- `T`: Element type of the spectral data matrix (e.g., `Float64`, `ComplexF64`)
-
-# Fields
-- `spec::AbstractArray{T}`: The STFT spectral data matrix where each column represents 
-  a time frame and each row represents a frequency bin
-- `freq::Vector{Float64}`: Frequency vector corresponding to the spectral bins (Hz)
-- `info::NamedTuple`: Metadata containing analysis parameters including:
-  - `sr`: Sample rate
-  - `nfft`: FFT size used for analysis
-  - `winsize`: Window size
-  - `overlap`: Overlap between windows
-  - `freqrange`: Frequency range analyzed
-  - `spectrum`: Type of spectrum (`:power` or `:magnitude`)
-
-# Constructor
-    Stft{F}(spec::AbstractArray{T}, freq::Vector{Float64}, info::NamedTuple) where {T}
-
-# Examples
-```julia
-# Get STFT from audio frames
-frames = get_frames(audiofile)
-stft   = get_stft(frames; nfft=512, spectrum=:power)
-
-# Access data
-spec_matrix = get_spec(stft)     # Get spectral data
-frequencies = get_freq(stft)     # Get frequency vector
-metadata    = get_setup(stft)     # Get analysis parameters
-```
-
-# See also:
-[`AbstractSpectrogram`](@ref), [`get_spec`](@ref), [`get_freq`](@ref), [`get_setup`](@ref)
+Build one with [`Stft(frames; nfft, spectrum)`](@ref Stft(::Frames)) or
+[`Stft(audio; kwargs...)`](@ref Stft(::AudioFile)).
 """
-struct Stft{T} <: AbstractSpectrogram
-	spec :: AbstractArray{T}
-	freq :: StepRangeLen
-	info :: StftSetup
-
-	function Stft(
-		spec :: AbstractArray{T},
-		freq :: StepRangeLen,
-		info :: StftSetup
-	) where {T<:AudioData}
-		new{T}(spec, freq, info)
-	end
+struct Stft{T<:AudioData} <: AbstractSpectrogram
+    spec   :: Matrix{T}
+    freq   :: StepRangeLen{T}
+    frames :: Frames{T}
+    info   :: StftSetup{T}
 end
 
 #------------------------------------------------------------------------------#
@@ -73,282 +40,242 @@ end
 Base.eltype(::Stft{T}) where T = T
 
 """
-    get_data(m::Stft{T}) -> AbstractArray
+    get_data(s::Stft) -> Matrix
 
-Get the stft spectrogram data matrix, transposed to (nframes × nbands).
+The spectrogram as stored: `bins × frames` (same as [`get_spec`](@ref)).
 """
-@inline get_data(s::Stft{T}) where T = s.spec
-
-"""
-    get_freq(m::Stft{T}) -> Vector
-
-Get the frequency range in Hz.
-"""
-@inline get_freq(s::Stft{T}) where T = s.freq
+@inline get_data(s::Stft) = s.spec
+@inline get_spec(s::Stft) = s.spec
 
 """
-    get_setup(m::Stft{T}) -> StftSetup
+    get_freq(s::Stft) -> AbstractRange
 
-Get the configuration metadata for the stft spectrogram.
+Bin centre frequencies in Hz, `0:sr/nfft:sr/2`.
 """
-@inline get_setup(s::Stft{T}) where T = s.info
-
-"""
-    get_sr(s::Stft{T}) where T -> Int64
-
-Get the sample rate used in STFT computation.
-"""
-@inline get_sr(s::Stft{T}) where T = s.info.sr
+@inline get_freq(s::Stft) = s.freq
 
 """
-    get_nfft(s::Stft{T}) where T -> Int64
+    get_setup(s::Stft) -> StftSetup
 
-Get the FFT size used in STFT computation.
-
-The FFT size determines frequency resolution and the number of frequency bins.
-For one-sided spectra (real signals), the number of bins is nfft/2 + 1.
+Parameters used to compute the STFT.
 """
-@inline get_nfft(s::Stft{T}) where T = s.info.nfft
+@inline get_setup(s::Stft) = s.info
 
 """
-    get_spectrum(s::Stft{T}) where T -> Function
+    get_sr(s::Stft) -> Int
 
-Get the spectrum type function used in STFT computation.
+Sample rate in Hz.
 """
-@inline get_spectrum(s::Stft{T}) where T = s.info.spectrum
-
-@inline get_winsize(s::Stft{T}) where T = s.info.winsize
-
-@inline get_overlap(s::Stft{T}) where T = s.info.overlap
+@inline get_sr(s::Stft) = s.info.sr
 
 """
-    get_window(s::Stft{T}) where T -> Vector{<:Real}
+    get_nfft(s::Stft) -> Int
 
-Get the time-domain window coefficients used in STFT computation.
+FFT size. The one-sided spectrum has `nfft ÷ 2 + 1` bins.
 """
-@inline get_window(s::Stft{T}) where T = s.info.window
+@inline get_nfft(s::Stft) = s.info.nfft
+
+"""
+    get_spectrum(s::Stft) -> Function
+
+`power` or `magnitude`.
+"""
+@inline get_spectrum(s::Stft) = s.info.spectrum
+
+@inline get_winsize(s::Stft) = s.info.winsize
+@inline get_step(s::Stft)    = s.info.winstep
+@inline get_overlap(s::Stft) = s.info.overlap
+@inline get_offset(s::Stft)  = s.info.offset
+
+"""
+    get_window(s::Stft) -> Vector
+
+The time-domain analysis window.
+"""
+@inline get_window(s::Stft) = s.info.window
+
+"""
+    get_frames(s::Stft) -> Frames
+
+The frames the transform was computed from.
+"""
+@inline get_frames(s::Stft) = s.frames
+@inline get_parent(s::Stft) = s.frames
+@inline get_energy(s::Stft) = get_energy(s.frames)
+
+# exact bin arithmetic for the FFT grid (MATLAB parity)
+function _freq_indices(s::Stft, freqrange::FreqRange)
+    nfft, sr = get_nfft(s), get_sr(s)
+    bin_low  = cld(get_low(freqrange) * nfft, sr) + 1
+    bin_high = fld(get_hi(freqrange)  * nfft, sr) + 1
+    bin_high = min(bin_high, get_nbins(s))
+    bin_low ≤ bin_high || throw(ArgumentError("No frequency bins inside freqrange = $freqrange."))
+    return bin_low:bin_high
+end
 
 # ---------------------------------------------------------------------------- #
 #                                     show                                     #
 # ---------------------------------------------------------------------------- #
 function Base.show(io::IO, s::Stft{T}) where T
     nfreqs, nframes = size(get_data(s))
-    sr = s.info.sr
-    spec_type = string(s.info.spectrum)
-    
-    print(io, "Stft{$T}(")
-    print(io, "$nframes frames × $nfreqs bins, ")
-    print(io, "sr=$sr Hz, ")
-    print(io, "spectrum=$spec_type)")
+    print(io, "Stft{$T}($nframes frames × $nfreqs bins, sr=$(s.info.sr) Hz, spectrum=$(s.info.spectrum))")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", s::Stft{T}) where T
-    nframes = size(get_data(s), 2)
-    sr = s.info.sr
-    nfft = s.info.nfft
-    winsize = s.info.winsize
-    overlap = s.info.overlap
-    spectrum_type = s.info.spectrum
-
-    hop_size = winsize - overlap
-    
+    nfreqs, nframes = size(get_data(s))
     println(io, "Stft{$T}")
-    println(io, "    Sample rate:     $sr Hz")
+    println(io, "    Sample rate:     $(s.info.sr) Hz")
     println(io, "    Frames:          $nframes")
-    println(io, "    FFT size:        $nfft")
-    println(io, "    Window size:     $winsize samples")
-    println(io, "    Overlap:         $overlap samples")
-    println(io, "    Hop size:        $hop_size samples")
-    println(io, "    Spectrum type:   $spectrum_type")
+    println(io, "    Bins:            $nfreqs")
+    println(io, "    FFT size:        $(s.info.nfft)")
+    println(io, "    Window size:     $(s.info.winsize) samples")
+    println(io, "    Hop size:        $(s.info.winstep) samples")
+    println(io, "    Overlap:         $(s.info.overlap) samples")
+    print(io,   "    Spectrum type:   $(s.info.spectrum)")
 end
 
 #------------------------------------------------------------------------------#
 #                           spectrum normalizations                            #
 #------------------------------------------------------------------------------#
 """
-    power(f::AbstractArray) -> AbstractArray
+    power(f)
 
-Compute power spectral density from complex FFT values.
-
-Transforms complex frequency-domain values to real power values by computing
-the squared magnitude: |X(f)|² = real(X(f) · conj(X(f))).
+Power spectrum of complex FFT values: `|X(f)|²`. Works on scalars and arrays.
 """
-power(f)     = @. real(f * conj(f))
+power(f) = abs2.(f)
 
 """
-    magnitude(f::AbstractArray) -> AbstractArray
+    magnitude(f)
 
-Compute magnitude spectrum from complex FFT values.
-
-Transforms complex frequency-domain values to real magnitude values by computing
-the absolute value: |X(f)|.
+Magnitude spectrum of complex FFT values: `|X(f)|`. Works on scalars and arrays.
 """
-magnitude(f) = @. abs(f)
+magnitude(f) = abs.(f)
 
 #------------------------------------------------------------------------------#
 #                                  utilities                                   #
 #------------------------------------------------------------------------------#
-function _get_onesided_stft_range(nfft::Int64)::UnitRange
-	return iseven(nfft) ?
-		(1:nfft >> 1 + 1) : # even
-        (1:(nfft + 1) >> 1) # odd
+_onesided_length(nfft::Int64) = nfft ÷ 2 + 1
+
+# partition 1:n into at most nthreads contiguous chunks
+function _chunks(n::Int)
+    nt = max(1, min(Threads.nthreads(), n))
+    return collect(Iterators.partition(1:n, cld(n, nt)))
+end
+
+# stream the windowed frames through a pre-planned real FFT, one frame at a
+# time, writing `spectrum(X)` straight into the output columns
+function _stft!(spec::Matrix{T}, frames::Frames{T}, nfft::Int, spectrum::Base.Callable) where T
+    w  = get_window(frames)
+    ws = length(w)
+    n  = size(spec, 2)
+    n == 0 && return spec
+    plan = plan_rfft(zeros(T, nfft))
+    Threads.@threads for chunk in _chunks(n)
+        buf = zeros(T, nfft)
+        out = Vector{Complex{T}}(undef, _onesided_length(nfft))
+        raw = view(buf, 1:ws)
+        for j in chunk
+            frame!(raw, frames, j)
+            @inbounds @simd for k in 1:ws
+                buf[k] *= w[k]
+            end
+            mul!(out, plan, buf)
+            @inbounds for k in eachindex(out)
+                spec[k, j] = spectrum(out[k])
+            end
+        end
+    end
+    return spec
 end
 
 #------------------------------------------------------------------------------#
 #                                   get stft                                   #
 #------------------------------------------------------------------------------#
 """
-    Stft(frames::Frames; nfft::Int64, spectrum::Base.Callable) -> Stft
+    Stft(frames::Frames; nfft=get_winsize(frames), spectrum=power) -> Stft
 
-Compute Short-Time Fourier Transform (STFT) from pre-computed audio frames.
+Compute the short-time Fourier transform of pre-computed frames.
 
-Applies FFT to each windowed frame to obtain a time-frequency representation.
-Zero-padding is automatically applied if `nfft > winsize` to achieve frequency 
-interpolation without changing spectral content.
-
-# Arguments
-- `frames::Frames`: Pre-computed windowed audio frames
+Every frame is multiplied by the analysis window, zero-padded to `nfft` when
+`nfft > winsize`, transformed with a pre-planned real FFT and reduced to a
+one-sided `power` (`|X|²`) or `magnitude` (`|X|`) spectrum. The work streams
+through the frames with one buffer per thread, so memory is the output matrix
+plus a few `nfft`-length buffers.
 
 # Keyword Arguments
-- `nfft::Int64`: FFT size (default: `winsize`). Must be ≥ window size.
-  Larger values provide finer frequency resolution through interpolation.
-- `spectrum::Base.Callable`: Spectrum type (default: `power`)
-  - `power`: Power spectral density |X(f)|²
-  - `magnitude`: Magnitude spectrum |X(f)|
+- `nfft::Int`: FFT size, must be `≥ winsize` (default: `winsize`). Zero
+  padding interpolates the spectrum; frequency spacing is `sr / nfft`.
+- `spectrum::Base.Callable`: `power` (default) or `magnitude`
 
-# Returns
-- `Stft`: STFT object containing spectral data and metadata
+# Throws
+`ArgumentError` if `nfft < winsize` or the frames do not overlap.
 
 # Examples
 ```julia
-# Basic usage with default FFT size
-frames = Frames(audio; winsize=512, winstep=256)
-stft = Stft(frames)
-
-# With zero-padding for finer frequency resolution
-stft = Stft(frames; nfft=1024)  # Double frequency bins
-
-# Magnitude spectrum instead of power
-stft = Stft(frames; spectrum=magnitude)
+frames = Frames(audio; winsize=512, winstep=256, type=hamming)
+stft   = Stft(frames)                       # 257 × nframes power spectrogram
+stft   = Stft(frames; nfft=1024)            # finer frequency grid
+stft   = Stft(frames; spectrum=magnitude)
 ```
 
-# Throws
-- `ArgumentError`: If overlap ≥ winsize or nfft < winsize
-
-# Notes
-- Zero-padding in time domain = frequency interpolation
-- Does not change spectral content, only interpolates between bins
-- One-sided spectrum is returned (real signals are symmetric in frequency)
-- Frequency resolution: Δf = sr / nfft
-
-# See also
-[`Frames`](@ref), [`power`](@ref), [`magnitude`](@ref)
+See also [`Frames`](@ref), [`power`](@ref), [`magnitude`](@ref), [`Cwt`](@ref).
 """
 function Stft(
-	frames   :: Frames;
-	nfft     :: Int64=get_winsize(frames),
-	spectrum :: Base.Callable=power, # power, magnitude
-)::Stft
-	sr        = get_sr(frames)
-	winsize   = get_winsize(frames)
-	overlap   = get_overlap(frames)
-	winframes = get_winframes(frames)
+    frames   :: Frames{T};
+    nfft     :: Int64=get_winsize(frames),
+    spectrum :: Base.Callable=power,
+) where {T<:AudioData}
+    sr      = get_sr(frames)
+    winsize = get_winsize(frames)
+    overlap = get_overlap(frames)
 
-    # validate overlap
-    (0 < overlap < winsize) ||
+    (0 ≤ overlap < winsize) ||
         throw(ArgumentError("Overlap length must be < window length. " *
-				"Got overlap = $overlap, window length = $winsize"))
-    
-    # validate nfft
+                "Got overlap = $overlap, window length = $winsize"))
     nfft < winsize &&
         throw(ArgumentError("nfft must be ≥ window length. " *
-				"Got nfft = $nfft, window length = $winsize"))
+                "Got nfft = $nfft, window length = $winsize"))
+    spectrum in (power, magnitude) ||
+        throw(ArgumentError("spectrum must be `power` or `magnitude`, got $spectrum"))
 
-	# ensure frames is of length nfft
-	# if the FFT window is larger than the window, the audio data will be zero-padded to match the size of the FFT window.
-	# this zero-padding in the time domain results in an interpolation in the frequency domain, 
-	# which can provide a more detailed view of the spectral content of the signal.
-    @inline @views winframes = winsize < nfft ? 
-		vcat(winframes, zeros(eltype(winframes), nfft - winsize, size(winframes, 2))) : 
-		winframes[1:nfft, :]
+    spec = Matrix{T}(undef, _onesided_length(nfft), length(frames))
+    _stft!(spec, frames, nfft, spectrum)
 
-	# fft -> one side -> spectrum normalization
-	spec = @views fft(winframes, (1,))[_get_onesided_stft_range(nfft), :] |> spectrum
+    freq = (0:size(spec, 1)-1) .* (T(sr) / T(nfft))
+    info = StftSetup{T}(sr, nfft, winsize, get_step(frames), overlap, spectrum,
+                        get_window(frames), get_offset(frames))
 
-	# frequency vector
-	T = eltype(spec)
-	freq = (0:size(spec, 1)-1) .* (T(sr) / T(nfft))
-
-	info = StftSetup(
-		sr,
-		nfft,
-		winsize,
-		overlap,
-		spectrum,
-		get_window(frames)
-	)
-
-	return Stft(spec, freq, info)
+    return Stft{T}(spec, freq, frames, info)
 end
 
 """
-    Stft(audio::AudioFile; win::Base.Callable, type::Base.Callable, periodic::Bool, kwargs...) -> Stft
+    Stft(audio::AudioFile; kwargs...) -> Stft
+    Stft(x::AbstractVecOrMat, sr::Int; kwargs...) -> Stft
 
-Compute Short-Time Fourier Transform (STFT) directly from an audio file.
+Frame the signal and compute its STFT in one call. Framing keywords
+(`winsize`, `winstep`, `type`, `periodic`, `center`, `pad_mode`, `preemph`,
+`dc_removal`) go to [`Frames`](@ref); `nfft` and `spectrum` go to
+[`Stft(::Frames)`](@ref).
 
-Convenience constructor that combines frame extraction and STFT computation in one call.
-Automatically selects appropriate default window parameters based on sample rate.
-
-# Arguments
-- `audio::AudioFile`: Input audio file
-
-# Keyword Arguments
-- `win::Base.Callable`: Window configuration function (default: adaptive based on sample rate)
-  - For sr ≤ 8000 Hz: winsize=256, winstep=128
-  - For sr > 8000 Hz: winsize=512, winstep=256
-- `type::Base.Callable`: Window type function (default: `hanning`)
-  - Examples: `hanning`, `hamming`, `blackman`, `rectangular`
-- `periodic::Bool`: Use periodic window normalization (default: `true`)
-- Additional kwargs are passed to `Stft(frames; kwargs...)`
-  - `nfft::Int64`: FFT size
-  - `spectrum::Base.Callable`: Spectrum type (`power` or `magnitude`)
-
-# Returns
-- `Stft`: STFT object containing spectral data and metadata
-
-# Examples
 ```julia
-# Default settings (adaptive based on sample rate)
-audio = AudioFile("speech.wav")
-stft = Stft(audio)
-
-# Custom window configuration
-stft = Stft(audio; 
-    win=movingwindow(winsize=1024, winstep=512),
-    type=hamming
-)
-
-# Custom FFT size and magnitude spectrum
-stft = Stft(audio; 
-    nfft=2048,
-    spectrum=magnitude
-)
+stft = Stft(audio; winsize=1024, winstep=512, type=hamming, nfft=2048, spectrum=magnitude)
 ```
-
-# See also
-[`Stft(::Frames)`](@ref), [`Frames`](@ref), [`AudioFile`](@ref), [`movingwindow`](@ref)
 """
 function Stft(
-	audio    :: AudioFormat,
-    sr       :: Int64;
-	winsize  :: Int64=sr≤8000 ? 256 : 512,
-	winstep  :: Int64=sr≤8000 ? 128 : 256,
-	type     :: Base.Callable=hanning,
-    periodic :: Bool=true,
-	kwargs...
-	)::Stft
-	frames = Frames(audio, sr; winsize, winstep, type, periodic)
-	Stft(frames; kwargs...)
+    audio      :: AbstractVecOrMat{<:Real},
+    sr         :: Int64;
+    winsize    :: Int64=sr ≤ 8000 ? 256 : 512,
+    winstep    :: Int64=winsize ÷ 2,
+    type       :: Base.Callable=hanning,
+    periodic   :: Bool=true,
+    center     :: Bool=false,
+    pad_mode   :: Symbol=:constant,
+    preemph    :: Real=0,
+    dc_removal :: Bool=false,
+    kwargs...
+)
+    frames = Frames(audio, sr; winsize, winstep, type, periodic, center, pad_mode, preemph, dc_removal)
+    return Stft(frames; kwargs...)
 end
 
 Stft(a::AudioFile; kwargs...) = Stft(get_data(a), get_sr(a); kwargs...)

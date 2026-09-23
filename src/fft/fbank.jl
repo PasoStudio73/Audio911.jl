@@ -12,14 +12,22 @@ end
 # ---------------------------------------------------------------------------- #
 #                                filterbank data                               #
 # ---------------------------------------------------------------------------- #
+"""
+    FBank{T} <: AbstractFBank
+
+A filterbank: a `nbands × nbins` weight matrix evaluated on a frequency grid,
+the centre frequency and bandwidth of every band, and the design parameters.
+Built by [`auditory_fbank`](@ref) (triangular mel/bark filters) or
+[`gammatone_fbank`](@ref) (gammatone ERB filters).
+"""
 struct FBank{T<:AudioData} <: AbstractFBank
-    fbank::AbstractArray{T}
-    freq::AbstractVector{T}
-    bw::AbstractVector{T}
+    fbank::Matrix{T}
+    freq::Vector{T}
+    bw::Vector{T}
     setup::FBankSetup
 
     function FBank(
-        filterbank::AbstractArray{T},
+        filterbank::AbstractMatrix{T},
         filtfreq::AbstractVector{T},
         bw::AbstractVector{T},
         sr::Int,
@@ -29,9 +37,9 @@ struct FBank{T<:AudioData} <: AbstractFBank
         freqrange::FreqRange,
     ) where {T<:AudioData}
         new{T}(
-            filterbank,
-            filtfreq,
-            bw,
+            Matrix{T}(filterbank),
+            Vector{T}(filtfreq),
+            Vector{T}(bw),
             FBankSetup(sr, nbands, scale, norm, freqrange)
         )
     end
@@ -48,6 +56,7 @@ where M is the number of bands,
 and N is the number of frequency points of a one-sided spectrum.
 """
 @inline get_data(f::FBank) = f.fbank
+Base.eltype(::FBank{T}) where T = T
 
 """
     get_freq(f::FBank) -> AbstractVector
@@ -156,16 +165,16 @@ const bark(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
 end
 
 # these functions are exclusively used in case of `domain = :warped`
-const htk(hz::Union{StepRangeLen{T},Vector{T}} where T<:AudioData) =
+const htk(hz::AbstractVector{<:AudioData}) =
     @. 2595 * log10(1 + hz / 700)
 
-const slaney(hz::Union{StepRangeLen{T},Vector{T}} where T<:AudioData) = begin
+const slaney(hz::AbstractVector{<:AudioData}) = begin
     lin_step = 200 / 3
     return @. ifelse(hz < 1000, hz / lin_step,
         log(hz * 0.001) / (log(6.4) / 27) + (1000 / lin_step))  
 end
 
-const bark(hz::Union{StepRangeLen{T},Vector{T}} where T<:AudioData) =
+const bark(hz::AbstractVector{<:AudioData}) =
     @. 26.81 * hz / (1960 + hz) - 0.53
 
 # ---------------------------------------------------------------------------- #
@@ -176,7 +185,7 @@ const bandwidth = (filterbank, bw) -> bw / 2
 const none_norm = (filterbank, bw) -> 1
 
 function normalize!(
-    filterbank::AbstractArray{T},
+    filterbank::AbstractMatrix{T},
     norm_func::Function,
     bw::AbstractVector{T}
 ) where {T<:AudioData}
@@ -252,12 +261,12 @@ or warped frequency domains for different spectral analysis applications.
 - `sr::Int`: Sampling rate in Hz (required)
 
 # Keyword Arguments
-- `sfreq::Union{StepRangeLen{<:AudioData},Nothing}`: Frequency bins for
-  filterbank.
-  If `nothing`, computed automatically from `nfft` as a one-sided spectrum.
-  default = `nothing`
-- `nfft::Int`: FFT length for frequency resolution. Determines the number of
-  frequency bins and spectral detail.
+- `sfreq::Union{AbstractVector{<:AudioData},Nothing}`: frequency grid (Hz)
+  the filterbank is evaluated on. Any ascending grid works (an FFT grid, the
+  geometric grid of a scalogram, ...); its element type fixes the element
+  type of the filterbank. If `nothing`, the one-sided FFT grid of `nfft` is
+  used. default = `nothing`
+- `nfft::Int`: FFT length used to build the grid when `sfreq` is not given.
   Setting tips:
   default = `512`: good for sample rates around 16000 Hz,
   for sample rates around 4000 - 8000 Hz, would be better to set it at 256,
@@ -398,28 +407,35 @@ fb = auditory_fbank(16000;
 """
 function auditory_fbank(
     sr::Int;
-    sfreq::Union{StepRangeLen{<:AudioData},Nothing}=nothing,
+    sfreq::Union{AbstractVector{<:AudioData},Nothing}=nothing,
     nfft::Int=512,
     nbands::Int=26,
     scale::Function=htk, # htk, slaney, bark
     norm::Function=bandwidth, # area, bandwidth, or none_norm
     domain::Symbol=:linear, # :linear, :warped
-    freqrange::FreqRange=(0, sr÷2)
+    freqrange::FreqRange=(0, sr÷2),
+    T::Type=Float64
 )::FBank
     if isnothing(sfreq)
-        spec_length = _get_onesided_stft_range(nfft)[end]
-        sfreq = (0:spec_length - 1) .* (sr / nfft)
+        sfreq = (0:_onesided_length(nfft) - 1) .* (T(sr) / T(nfft))
     end
 
     T = eltype(sfreq)
-    domain == :warped && (linfq = (0:nfft - 1) .* (sr / nfft))
+    scale in (htk, slaney, bark) || throw(ArgumentError(
+        "scale must be `htk`, `slaney` or `bark`, got $scale"))
+    domain in (:linear, :warped) || throw(ArgumentError(
+        "domain must be :linear or :warped, got $domain"))
+    0 ≤ get_low(freqrange) < get_hi(freqrange) ≤ sr ÷ 2 || throw(ArgumentError(
+        "freqrange must satisfy 0 ≤ low < high ≤ sr/2, got $freqrange with sr = $sr"))
     band_edges = scale(T, freqrange, nbands)
 
-    filtfreq = @view band_edges[2:(end - 1)]
+    filtfreq = collect(band_edges[2:(end - 1)])
     nbands = length(filtfreq)
 
     p = [findfirst(sfreq .> edge) for edge in band_edges]
     isnothing(p[end]) ? p[end] = length(sfreq) : nothing
+    any(isnothing, p) && throw(ArgumentError(
+        "the frequency grid does not reach the filterbank edges; check freqrange"))
 
     # create triangular filters for each band
     filterbank = zeros(T, nbands, length(sfreq))
@@ -444,8 +460,8 @@ function auditory_fbank(
     end
 
     # normalization
-    (norm != :none) && normalize!(filterbank, norm, bw)
-    
+    norm === none_norm || normalize!(filterbank, norm, bw)
+
     FBank(filterbank, filtfreq, bw, sr, nbands, nameof(scale), norm, freqrange)
 end
 
@@ -462,8 +478,9 @@ between the filterbank and the spectrum.
 - `s::AbstractSpectrogram`: Audio 911's Stft Spectrogram object
 
 # Keyword Arguments
-Same as [`auditory_fbank(sr::Int; kwargs...)`](@ref), except `sfreq` and `nfft`
-are automatically extracted from the spectrogram. Available keywords:
+Same as [`auditory_fbank(sr::Int; kwargs...)`](@ref), except `sfreq` is
+the frequency grid of the spectrogram (`get_freq(s)`), so the filterbank
+matches any front end (`Stft`, `Cwt`, ...). Available keywords:
 - `nbands::Int`: Number of filter bands
 - `scale::Function`: Frequency scale (`htk`, `slaney`, `bark`)
 - `norm::Function`: Normalization (`bandwidth`, `area`, `none_norm`)
@@ -500,7 +517,7 @@ fb, f, bw = get_data(fbank), get_freq(fbank), get_bandwidth(fbank)
 - [`Stft`](@ref): Stft Spectrogram computation
 """
 auditory_fbank(s::AbstractSpectrogram; kwargs...) =
-    auditory_fbank(get_sr(s); sfreq=get_freq(s), nfft=get_nfft(s), kwargs...)
+    auditory_fbank(get_sr(s); sfreq=get_freq(s), kwargs...)
 
 """
     gammatone_fbank(sr::Int; kwargs...) -> FBank
@@ -516,8 +533,7 @@ compared to triangular mel/bark filters.
 - `sr::Int`: Sampling rate in Hz (required)
 
 # Keyword Arguments
-- `nfft::Int`: FFT length for frequency resolution. Determines the number of
-  frequency bins and spectral detail.
+- `nfft::Int`: FFT length used to build the grid when `sfreq` is not given.
   Setting tips:
   default = `512`: good for sample rates around 16000 Hz,
   for sample rates around 4000 - 8000 Hz, would be better to set it at 256,
@@ -546,6 +562,11 @@ compared to triangular mel/bark filters.
   frequency ranges to isolate the feature you are looking for and remove
   unwanted noise: buzz and static noise in the low end,
   crackle and hiss in the high end.
+- `sfreq`: frequency grid, as in [`auditory_fbank`](@ref)
+
+The filter responses are evaluated directly on the grid, and every bin
+strictly between DC and Nyquist is doubled (one-sided spectrum convention of
+MATLAB's `designAuditoryFilterBank`).
 
 # Examples
 
@@ -573,39 +594,57 @@ fb = gammatone_fbank(44100;
 """
 function gammatone_fbank(
     sr::Int;
+    sfreq::Union{AbstractVector{<:AudioData},Nothing}=nothing,
     nfft::Int=512,
     nbands::Int=26,
     norm::Function=bandwidth, # area, bandwidth, or none_norm
     freqrange::FreqRange=(0, round(Int, sr / 2)),
     T::Type=Float64
 )
-    erbrange = @. log(10) * 1000 /
-        (24.673 * 4.368) * log10(1 + 0.004368 * freqrange)
+    if isnothing(sfreq)
+        sfreq = (0:_onesided_length(nfft) - 1) .* (T(sr) / T(nfft))
+    end
+    T = eltype(sfreq)
+    0 ≤ get_low(freqrange) < get_hi(freqrange) ≤ sr ÷ 2 || throw(ArgumentError(
+        "freqrange must satisfy 0 ≤ low < high ≤ sr/2, got $freqrange with sr = $sr"))
+
+    # centre frequencies, equally spaced on the ERB scale (design in Float64)
+    erbrange = @. log(10) * 1000 / (24.673 * 4.368) * log10(1 + 0.004368 * freqrange)
     erb = LinRange(get_low(erbrange), get_hi(erbrange), nbands)
-    filtfreq = @. T(10 ^ (erb / (log(10) * 1000 / (24.673 * 4.368))) - 1) /
-        T(0.004368)
-    coeffs = compute_gammatone_coeffs(sr, filtfreq)
+    cf  = @. (10 ^ (erb / (log(10) * 1000 / (24.673 * 4.368))) - 1) / 0.004368
+    coeffs = compute_gammatone_coeffs(sr, collect(Float64, cf))
 
-    iirfreqz = (b, a, n) ->
-        fft([b; zeros(T, n - length(b))]) ./ fft([a; zeros(T, n - length(a))])
-    sosfilt = (c, n) -> reduce((x, y) -> x .* y,
-        map(row -> iirfreqz(row[1:3], row[4:6], n), eachrow(c)))
-    applysos = (i) -> abs.(sosfilt(coeffs[:, :, i], nfft))
-
-    filterbank = zeros(T, nbands, nfft)
+    # |H(f)| of the 4-section cascade evaluated directly on the grid
+    nf = length(sfreq)
+    filterbank = zeros(T, nbands, nf)
     Threads.@threads for i in 1:nbands
-        filterbank[i, :] = applysos(i)
+        @inbounds for k in 1:nf
+            z = cis(-2π * Float64(sfreq[k]) / sr)
+            h = one(ComplexF64)
+            for r in 1:4
+                b0, b1, b2 = coeffs[r, 1, i], coeffs[r, 2, i], coeffs[r, 3, i]
+                a0, a1, a2 = coeffs[r, 4, i], coeffs[r, 5, i], coeffs[r, 6, i]
+                h *= (b0 + b1 * z + b2 * z * z) / (a0 + a1 * z + a2 * z * z)
+            end
+            filterbank[i, k] = T(abs(h))
+        end
     end
 
-    bw = T(1.019 * 24.7) * T.(0.00437 * filtfreq .+ 1)
+    filtfreq = T.(cf)
+    bw = T(1.019 * 24.7) .* T.(0.00437 .* cf .+ 1)
 
-    (norm != :none) && normalize!(filterbank, norm, bw)
+    # one-sided spectrum: double every bin strictly between DC and Nyquist.
+    # this happens before the normalisation so that `area` sums the response
+    # over the full two-sided grid, as MATLAB does.
+    nyq = T(sr) / 2
+    tol = 8 * eps(T) * nyq
+    @inbounds for k in 1:nf
+        f = sfreq[k]
+        (f > tol && f < nyq - tol) && (filterbank[:, k] .*= 2)
+    end
 
-    @views rem(nfft, 2) == 0 ?
-        filterbank[:, 2:(nfft ÷ 2)] .*= 2 :
-        filterbank[:, 2:(nfft ÷ 2 + 1)] .*= 2
-    filterbank = @view filterbank[:, 1:(nfft ÷ 2 + 1)]
-    
+    norm === none_norm || normalize!(filterbank, norm, bw)
+
     FBank(filterbank, filtfreq, bw, sr, nbands, :erb, norm, freqrange)
 end
 
@@ -622,8 +661,8 @@ and the spectrum.
 - `s::AbstractSpectrogram`: Audio 911's Stft Spectrogram object
 
 # Keyword Arguments
-Same as [`gammatone_fbank(sr::Int; kwargs...)`](@ref), except `nfft` is
-automatically extracted from the spectrogram:
+Same as [`gammatone_fbank(sr::Int; kwargs...)`](@ref), except `sfreq` is
+the frequency grid of the spectrogram (`get_freq(s)`):
 - `nbands::Int`: Number of ERB-spaced filter bands
 - `norm::Function`: Normalization method
 - `freqrange::FreqRange`: Frequency range tuple
@@ -652,9 +691,4 @@ Also
 - [`Stft`](@ref): Stft Spectrogram computation
 """
 gammatone_fbank(s::AbstractSpectrogram; kwargs...) =
-    gammatone_fbank(
-        get_sr(s);
-        nfft=get_nfft(s),
-        T=eltype(get_data(s)),
-        kwargs...
-    )
+    gammatone_fbank(get_sr(s); sfreq=get_freq(s), kwargs...)

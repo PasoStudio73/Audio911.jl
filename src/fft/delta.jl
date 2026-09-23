@@ -1,188 +1,112 @@
 # ---------------------------------------------------------------------------- #
 #                                    info                                      #
 # ---------------------------------------------------------------------------- #
-"""
-    DeltaSetup <: AbstractSetup
-
-Configuration structure for delta (and delta-delta) coefficient computation.
-
-# Fields
-- `sr::Int64`: Sample rate of the source audio signal, in Hz.
-- `delta_length::Int64`: Length of the regression window used to compute delta
-  coefficients. Must be odd; default is `9`.
-- `source::Symbol`: Filtering convention applied to the input matrix:
-  - `:standard` — filter along rows (MATLAB-compatible ordering).
-  - `:transposed` — filter along columns (AudioFlux-compatible ordering).
-"""
 struct DeltaSetup <: AbstractSetup
-    sr::Int64
-    delta_length::Int64
-    source::Symbol
+    sr           :: Int64
+    delta_length :: Int64
+    source       :: Symbol
 end
 
 # ---------------------------------------------------------------------------- #
-#                                     mfcc                                     #
+#                                 delta struct                                 #
 # ---------------------------------------------------------------------------- #
 """
-    Delta{T} <: AbstractDelta
+    Delta{F,T} <: AbstractDelta
 
-First-order delta coefficients of a cepstral feature sequence (e.g., MFCCs).
+Temporal derivative of a feature matrix (MATLAB's `audioDelta`, `mfccDelta`),
+stored as `coeffs × frames`. Apply it twice for delta-delta.
 
-Delta coefficients estimate the **local time derivative** of a feature sequence and
-capture the dynamics of the signal over time. They are commonly appended to static
-cepstral features (e.g., MFCCs) to enrich the feature vector with temporal
-information, improving performance in speech and audio recognition tasks.
-
-Computation uses a **linear regression** over a sliding window of length
-`delta_length`, which is equivalent to convolving the feature sequence with a
-set of regression weights. The filter is applied causally using `DSP.filt`.
-
-# Fields
-- `spec::AbstractArray{T}`: Delta coefficient array, same shape as the input
-  feature matrix.
-- `info::DeltaSetup`: Configuration metadata (sample rate, window length,
-  source convention).
-
-# Constructors
-
-    Delta{S}(x::AbstractArray{T}; sr, delta_length=9, source=:standard)
-
-Low-level constructor. Computes delta coefficients from a raw feature array.
-
-## Arguments
-- `x::AbstractArray{T}`: Input feature matrix (e.g., MFCC coefficients).
-- `sr::Int64`: Sample rate of the source signal, in Hz.
-- `delta_length::Int64=9`: Regression window length. Must be an odd integer ≥ 3.
-  Longer windows produce smoother derivatives but introduce more temporal lag.
-- `source::Symbol=:standard`: Filtering axis convention:
-  - `:standard` — filter applied along rows (MATLAB style).
-  - `:transposed` — filter applied along columns (AudioFlux style).
-
----
-
-    Delta(x::AbstractCepstrum; kwargs...)
-
-Convenience constructor. Computes delta coefficients directly from a cepstral
-feature object (e.g., an MFCC struct). Sample rate is extracted automatically.
-
----
-
-    Delta(x::Delta{S}; kwargs...)
-
-Convenience constructor. Computes delta coefficients from an existing `Delta`
-object, yielding **delta-delta** (acceleration) coefficients when used standalone.
-For the standard paired workflow, prefer [`DeltaDelta`](@ref).
-
-# Algorithm
-The regression weights ``b`` for a window of half-length ``m = \\lfloor L/2 \\rfloor``
-are:
-
-```math
-b[k] = \\frac{m - k + 1}{\\sum_{i=1}^{m} i^2}, \\quad k = 1, \\ldots, L
-```
-
-The delta of feature sequence ``c_t`` at frame ``t`` is approximated as:
-
-```math
-\\Delta c_t \\approx \\frac{\\sum_{k=-m}^{m} k \\cdot c_{t+k}}{\\sum_{k=1}^{m} k^2}
-```
-
-This is equivalent to fitting a straight line through the `delta_length` neighboring
-frames and taking its slope, providing a noise-robust finite-difference estimate.
+See [`Delta(x; delta_length)`](@ref Delta(::AbstractAudioSpectrum)).
 """
-struct Delta{T} <: AbstractDelta
-    spec::AbstractArray{T}
-    info::DeltaSetup
+struct Delta{F,T<:AudioData} <: AbstractDelta
+    spec   :: Matrix{T}
+    parent :: F
+    info   :: DeltaSetup
+end
 
-    function Delta{S}(
-        x::AbstractArray{T};
-        sr::Int64,
-        delta_length::Int64=9,
-        source::Symbol=:standard,
-    ) where {T<:AbstractFloat, S}
-        # validate delta_length
-        delta_length > 2 || throw(ArgumentError("delta_length must be > 2, got $delta_length."))
-        isodd(delta_length)  || throw(ArgumentError("delta_length must be odd, got $delta_length."))
-        
-        # define window shape
-        m = delta_length ÷ 2
-        b = collect(m:-1:(-m)) ./ sum((1:m) .^ 2)
-
-        spec = if source == :transposed
-            DSP.filt(b, 1.0, x')'   #:audioflux setting
-        else
-            DSP.filt(b, 1.0, x)     #:matlab setting
+# causal FIR `y[:, j] = Σ b[i+1] x[:, j-i]` along the frame axis, zero initial state
+function _delta(x::AbstractMatrix{T}, delta_length::Int64) where T
+    m = delta_length ÷ 2
+    den = T(sum((1:m) .^ 2))
+    b = T[T(m - i) / den for i in 0:2m]
+    nr, nc = size(x)
+    y = zeros(T, nr, nc)
+    @inbounds for j in 1:nc, i in 0:min(2m, j - 1)
+        bi = b[i + 1]
+        iszero(bi) && continue
+        @simd for r in 1:nr
+            y[r, j] += bi * x[r, j - i]
         end
-        info = DeltaSetup(sr, delta_length, source)
-
-        new{T}(spec, info)
     end
+    return y
+end
 
-    Delta(x::AbstractCepstrum; kwargs...) =
-        Delta{typeof(x)}(get_data(x); sr=get_sr(x), kwargs...)
-
-    Delta(x::Delta{S}; kwargs...) where {S} =
-        Delta{S}(get_data(x); sr=get_sr(x), kwargs...)
+function _delta_matrix(x::AbstractMatrix{T}, delta_length::Int64, source::Symbol) where T
+    delta_length > 2 || throw(ArgumentError("delta_length must be > 2, got $delta_length."))
+    isodd(delta_length) || throw(ArgumentError("delta_length must be odd, got $delta_length."))
+    source in (:standard, :transposed) || throw(ArgumentError(
+        "source must be :standard or :transposed, got $source"))
+    return source == :transposed ?
+        permutedims(_delta(permutedims(x), delta_length)) :   # audioflux: along the coefficients
+        _delta(x, delta_length)                               # matlab: along the frames
 end
 
 """
-    DeltaDelta(x::AbstractCepstrum, kwargs...) -> (Delta, Delta)
+    Delta(x::AbstractAudioSpectrum; delta_length=9, source=:standard) -> Delta
+    Delta(x::AbstractMatrix; sr, delta_length=9, source=:standard) -> Delta
 
-Compute first-order (delta) and second-order (delta-delta) coefficients from a
-cepstral feature sequence in a single call.
+First-order temporal derivative of a feature (cepstrum, delta, spectrogram),
+computed with MATLAB's `audioDelta` regression filter of odd length
+`delta_length` (`DeltaWindowLength`), causal with zero initial state.
+A raw matrix is taken in `frames × coeffs` orientation, like `get_data`.
 
-Delta-delta coefficients capture the **acceleration** of feature trajectories over
-time. Together with static features and first-order deltas, they form the standard
-39-dimensional MFCC feature vector widely used in speech and audio recognition
-(13 static + 13 Δ + 13 ΔΔ).
+- `source=:transposed` differentiates along the coefficient axis instead
+  (audioflux convention).
 
-# Arguments
-- `x::AbstractCepstrum`: Input cepstral feature object (e.g., MFCCs).
-- `kwargs...`: Additional keyword arguments forwarded to the [`Delta`](@ref)
-  constructor (e.g., `delta_length`, `source`).
-
-# Returns
-A tuple `(d1, d2)` where:
-- `d1::Delta`: First-order delta coefficients (velocity).
-- `d2::Delta`: Second-order delta-delta coefficients (acceleration), computed
-  by applying the same delta filter to `d1`.
-
-# See also
-[`Delta`](@ref)
+```julia
+mfcc   = Mfcc(mel; ncoeffs=13)
+delta  = Delta(mfcc)
+delta2 = Delta(delta)          # delta-delta
+```
 """
-function DeltaDelta(x::AbstractCepstrum, kwargs...)
-    d1 = Delta{typeof(x)}(get_data(x); sr=get_sr(x), kwargs...)
-    d2 = Delta{typeof(d1)}(get_data(d1); sr=get_sr(x), kwargs...)
+function Delta(x::AbstractAudioSpectrum; delta_length::Int64=9, source::Symbol=:standard)
+    spec = _delta_matrix(get_spec(x), delta_length, source)
+    Delta{typeof(x),eltype(x)}(spec, x, DeltaSetup(get_sr(x), delta_length, source))
+end
+
+function Delta(x::AbstractMatrix{T}; sr::Int64, delta_length::Int64=9, source::Symbol=:standard) where {T<:AudioData}
+    spec = _delta_matrix(permutedims(x), delta_length, source)
+    Delta{Nothing,T}(spec, nothing, DeltaSetup(sr, delta_length, source))
+end
+
+"""
+    DeltaDelta(x; kwargs...) -> (Delta, Delta)
+
+Convenience returning the delta and delta-delta of `x`.
+"""
+function DeltaDelta(x::AbstractAudioSpectrum; kwargs...)
+    d1 = Delta(x; kwargs...)
+    d2 = Delta(d1; kwargs...)
     return d1, d2
 end
 
 # ---------------------------------------------------------------------------- #
 #                                    methods                                   #
 # ---------------------------------------------------------------------------- #
-"""
-    Base.eltype(::Delta{T}) -> Type
-
-Return the element type of the delta spectrogram data.
-"""
-Base.eltype(::Delta{T}) where {T} = T
+Base.eltype(::Delta{F,T}) where {F,T} = T
 
 """
-    get_data(m::Delta) -> Matrix
+    get_data(d::Delta) -> AbstractMatrix
 
-Get the delta spectrogram data matrix, transposed to (nframes × nbands).
+Deltas transposed to `frames × coeffs` (MATLAB orientation).
 """
-@inline get_data(m::Delta)  = m.spec
+@inline get_data(d::Delta)   = d.spec'
+@inline get_spec(d::Delta)   = d.spec
+@inline get_setup(d::Delta)  = d.info
+@inline get_sr(d::Delta)     = d.info.sr
+@inline get_parent(d::Delta) = d.parent
 
-"""
-    get_setup(m::Delta) -> MelSpecSetup
-
-Get the configuration metadata for the delta spectrogram.
-"""
-@inline get_setup(m::Delta) = m.info
-
-"""
-    get_sr(m::Delta) -> Int64
-
-Return the sample rate (in Hz) associated with the Delta spectrogram.
-"""
-@inline get_sr(m::Delta) = m.info.sr
+function Base.show(io::IO, d::Delta{F,T}) where {F,T}
+    nc, nf = size(d.spec)
+    print(io, "Delta{$(nameof(F)),$T}($nf frames × $nc coeffs, length=$(d.info.delta_length))")
+end

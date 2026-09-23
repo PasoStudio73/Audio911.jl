@@ -14,30 +14,71 @@ import AudioReader: get_data, get_sr
 #                           audio related packages                             #
 # ---------------------------------------------------------------------------- #
 using  FFTW, DSP
-
-# ---------------------------------------------------------------------------- #
-#                              external packages                               #
-# ---------------------------------------------------------------------------- #
-using  DataTreatments
-@reexport using DataTreatments: movingwindow
-
-using LinearAlgebra
-using Plots
+using  LinearAlgebra
+using  Statistics: mean
+using  Plots
 
 # ---------------------------------------------------------------------------- #
 #                               abstract types                                 #
 # ---------------------------------------------------------------------------- #
+"""
+    AbstractSetup
+
+Supertype of the immutable `info` records every stage carries.
+"""
 abstract type AbstractSetup end
+
+"""
+    AbstractFrame
+
+Supertype of framed time-domain signals ([`Frames`](@ref)).
+"""
 abstract type AbstractFrame end
+
+"""
+    AbstractFBank
+
+Supertype of filterbank designs ([`FBank`](@ref)).
+"""
 abstract type AbstractFBank end
+
+"""
+    AbstractAudioSpectrum
+
+Supertype of every frame-rate feature of the pipeline.
+"""
 abstract type AbstractAudioSpectrum end
 
-abstract type AbstractSpectrogram <: AbstractAudioSpectrum end
-abstract type AbstractCepstrum <: AbstractAudioSpectrum end
-abstract type AbstractDelta <: AbstractAudioSpectrum end
-abstract type AbstractSpectral <: AbstractAudioSpectrum end
+"""
+    AbstractSpectrogram <: AbstractAudioSpectrum
 
-get_sr(s::AbstractSpectrogram) = s.info.sr
+A time-frequency representation: a real, non-negative `bins × frames` matrix
+with a frequency axis. Front ends (`Stft`, `Cwt`) and filterbank outputs
+(`LinSpec`, `MelSpec`, `BarkSpec`, `ErbSpec`) are subtypes. See the
+[pipeline design](@ref design) for the interface a subtype must implement.
+"""
+abstract type AbstractSpectrogram <: AbstractAudioSpectrum end
+
+"""
+    AbstractCepstrum <: AbstractAudioSpectrum
+
+Cepstral coefficients (`Mfcc`, `Gtcc`).
+"""
+abstract type AbstractCepstrum <: AbstractAudioSpectrum end
+
+"""
+    AbstractDelta <: AbstractAudioSpectrum
+
+Temporal derivatives of a feature matrix (`Delta`).
+"""
+abstract type AbstractDelta <: AbstractAudioSpectrum end
+
+"""
+    AbstractSpectral <: AbstractAudioSpectrum
+
+One value per frame descriptors (`SpectralCentroid`, `Rms`, ...).
+"""
+abstract type AbstractSpectral <: AbstractAudioSpectrum end
 
 # ---------------------------------------------------------------------------- #
 #                                   types                                      #
@@ -48,16 +89,9 @@ const Maybe{T} = Union{T, Nothing}
 """
     AudioData
 
-Type alias for audio sample data. Represents a value that can be either `Float64` or `Float32`.
-
-This alias is used for audio arrays and sample values throughout the package to ensure type stability.
-
-# Example
-
-```julia
-x::Vector{AudioData} = rand(Float32, 1024)
-y::AudioData = 0.5
-```
+Type alias for audio sample data: `Float64` or `Float32`. Every stage of the
+pipeline is parameterised on one of these two types and never promotes one to
+the other.
 """
 const  AudioData = Union{Float64, Float32}
 export AudioData
@@ -65,18 +99,14 @@ export AudioData
 """
     FreqRange
 
-Type alias for a frequency range, represented as a tuple `(min, max)` of integer values.
-
-This alias is used to specify the minimum and maximum frequency (in Hz) for audio processing routines.
-
-# Example
+A frequency range in Hz, as a tuple `(min, max)` of integers.
 
 ```julia
-fr::FreqRange = (20, 20000)  # 20 Hz to 20 kHz
+fr::FreqRange = (20, 20000)
 ```
 """
 const  FreqRange = Tuple{T, T} where {T<:Int64}
- 
+
 get_low(r::FreqRange) = r[1]
 get_hi(r::FreqRange)  = r[2]
 export FreqRange, get_low, get_hi
@@ -84,17 +114,7 @@ export FreqRange, get_low, get_hi
 """
     ScaleRange
 
-Type alias for a perceptual scale range, represented as a tuple `(min, max)` of `AudioData` values.
-
-This alias is used to specify the minimum and maximum values in perceptual scales (mel, bark, ERB, semitones)
-for audio processing routines.
-
-# Example
-
-```julia
-mel_range::ScaleRange = (0.0, 45.0)     # Mel scale range
-erb_range::ScaleRange = (0.0f0, 43.0f0) # ERB scale range (Float32)
-```
+A range on a perceptual scale (mel, bark, ERB), as a tuple of `AudioData`.
 """
 const  ScaleRange  = Tuple{T, T} where {T<:AudioData}
 
@@ -105,7 +125,18 @@ export ScaleRange
 # ---------------------------------------------------------------------------- #
 #                           spectrum normalizations                            #
 # ---------------------------------------------------------------------------- #
-winpower(f, w)     = f / sum(w).^2
+"""
+    winpower(f, w)
+
+Window normalisation for a power spectrum: `f / sum(w)^2`.
+"""
+winpower(f, w)     = f / sum(w)^2
+
+"""
+    winmagnitude(f, w)
+
+Window normalisation for a magnitude spectrum: `f / sum(w)`.
+"""
 winmagnitude(f, w) = f / sum(w)
 
 export winpower, winmagnitude
@@ -117,13 +148,21 @@ export winpower, winmagnitude
 @reexport using DSP: rect, hanning, hamming, cosine, lanczos, triang
 @reexport using DSP: bartlett, bartlett_hann, blackman
 
-export AbstractFrames
-export Frames
+export get_spec, get_spectrum, get_window, get_winnorm
+export get_nbins, get_nframes, get_times, get_offset, get_duration
+include("interface.jl")
+
+export Frames, povey
+export preemphasis, deemphasis
 include("frames.jl")
 
 export Stft
 export power, magnitude
 include("fft/stft.jl")
+
+export Cwt
+export morlet, morse, bump
+include("wavelet/cwt.jl")
 
 export FBank
 export htk, slaney, bark
@@ -138,7 +177,8 @@ export MelSpec, BarkSpec, ErbSpec
 include("fft/mel_spec.jl")
 
 export Mfcc, Gtcc
-export mlog, cubic_root
+export mlog, nlog, cubic_root, db
+export dct_ortho, dct_htk, dct_plain
 include("fft/mfcc.jl")
 
 export Delta
@@ -146,7 +186,7 @@ include("fft/delta.jl")
 
 export SpectralCentroid, SpectralCrest, SpectralDecrease, SpectralEntropy
 export SpectralFlatness, SpectralFlux, SpectralKurtosis, SpectralRolloff
-export SpectralSkewness, SpectralSlope, SpectralSpread
+export SpectralSkewness, SpectralSlope, SpectralSpread, SpectralBandwidth
 include("fft/spectral.jl")
 
 # ---------------------------------------------------------------------------- #
@@ -157,7 +197,7 @@ export get_data, get_setup
 
 # stft related
 export get_size, get_step, get_overlap
-export get_window, get_winframes, get_winsize
+export get_window, get_winframes, get_winsize, get_energy
 
 # spectrogram related
 export get_freq, get_sr, get_nfft, get_spectrum
@@ -167,6 +207,10 @@ export get_windows
 export get_bandwidth
 export get_nbands, get_scale, get_norm
 export get_freqrange, get_semitonerange
+
+# cepstrum related
+export get_ncoeffs, raw_energy, spectrum_energy
+export get_fbank, get_frames, get_parent, get_frontend, get_signal, frame!, get_scales
 
 # ---------------------------------------------------------------------------- #
 #                                   plots                                      #
