@@ -90,3 +90,97 @@ function _resample_sinc(x::AbstractVector{T}, ratio::Real; quality::Symbol=:best
     scale && (y ./= sqrt(F(ratio)))
     return y
 end
+
+# ---------------------------------------------------------------------------- #
+#                               chirp-Z transform                              #
+# ---------------------------------------------------------------------------- #
+"""
+    czt(x, m=length(x), w=cis(-2π/m), a=1) -> Vector{Complex}
+    czt(x, band::Tuple{Real,Real}; m=length(x)) -> Vector{Complex}
+
+Chirp-Z transform (Rabiner, Schafer & Rader 1969; MATLAB and SciPy `czt`):
+`X[k] = Σₙ x[n] (a w^(-k))^(-n)` for `k = 0 … m-1`, evaluated with
+Bluestein's algorithm (three FFTs of a power-of-two length). The defaults
+give the DFT.
+
+The second form is audioFlux's `CZT.czt(x, low_w, high_w)`, a zoom FFT:
+`m` points evenly spaced from `band[1]` to `band[2]` (excluded), in cycles
+per sample (`0 ≤ band[1] < band[2] ≤ 1`; multiply by `sr` for Hz).
+"""
+function czt(x::AbstractVector{<:Number}, m::Integer=length(x), w::Number=cis(-2π / m), a::Number=1)
+    n = length(x)
+    n ≥ 1 && m ≥ 1 || throw(ArgumentError("x and m must not be empty"))
+    T = float(real(eltype(x)))
+    C = Complex{T}
+    L = nextpow(2, n + m - 1)
+    lw = log(Complex{Float64}(w))
+    kk = -(n - 1):max(m, n) - 1
+    wk2 = [exp(lw * (Float64(k)^2 / 2)) for k in kk]          # w^(k²/2)
+    la = log(Complex{Float64}(a))
+    y = zeros(C, L)
+    @inbounds for j in 0:n-1
+        y[j + 1] = C(x[j + 1] * exp(-la * j) * wk2[n + j])
+    end
+    v = zeros(C, L)
+    @inbounds for j in 1:n+m-1
+        v[j] = C(1 / wk2[j])
+    end
+    g = ifft(fft(y) .* fft(v))
+    return C[g[n + k] * wk2[n + k] for k in 0:m-1]
+end
+
+function czt(x::AbstractVector{<:Number}, band::Tuple{Real,Real}; m::Integer=length(x))
+    lo, hi = band
+    0 ≤ lo < hi ≤ 1 || throw(ArgumentError("band must satisfy 0 ≤ low < high ≤ 1 (cycles per sample), got $band"))
+    return czt(x, m, cispi(-2 * (hi - lo) / m), cispi(2lo))
+end
+
+# ---------------------------------------------------------------------------- #
+#                        cross-correlation and convolution                     #
+# ---------------------------------------------------------------------------- #
+"""
+    xcorr(x, y=x; normalize=false) -> Vector
+
+Cross-correlation `r[l] = Σₙ x[n+l] conj(y[n])` for the lags
+`l = -(N-1) … N-1` (`2N - 1` values, lag 0 at index `N`), the shorter
+input zero-padded to the length `N` of the longer (MATLAB `xcorr`,
+audioFlux `Xcorr`), computed by FFT. `normalize=true` divides by
+`√(Σ|x|² Σ|y|²)` (MATLAB and audioFlux `coeff`), so the auto-correlation is
+1 at lag 0. Real inputs give a real result. See [`autocorrelate`](@ref)
+for librosa's non-negative lags.
+"""
+function xcorr(x::AbstractVector{<:Number}, y::AbstractVector{<:Number}=x; normalize::Bool=false)
+    N = max(length(x), length(y))
+    N ≥ 1 || throw(ArgumentError("the inputs must not be empty"))
+    T = float(real(promote_type(eltype(x), eltype(y))))
+    L = nextpow(2, 2N - 1)
+    X = zeros(Complex{T}, L); Y = zeros(Complex{T}, L)
+    X[1:length(x)] .= x; Y[1:length(y)] .= y
+    r = ifft(fft(X) .* conj.(fft(Y)))
+    out = vcat(r[L-N+2:L], r[1:N])
+    if normalize
+        s = sqrt(sum(abs2, x) * sum(abs2, y))
+        s > 0 && (out ./= s)
+    end
+    return eltype(x) <: Real && eltype(y) <: Real ? T.(real.(out)) : out
+end
+
+"""
+    convolve(a, b; mode=:full) -> Vector
+
+Linear convolution of two vectors (audioFlux `conv`, MATLAB `conv`):
+`mode=:full` gives all `length(a) + length(b) - 1` samples, `:same` the
+`length(a)` central ones (starting at `floor(length(b)/2)`, as MATLAB and
+audioFlux; SciPy's `same` starts one sample earlier for an even `b`) and
+`:valid` the `length(a) - length(b) + 1` computed without zero padding.
+"""
+function convolve(a::AbstractVector{<:Number}, b::AbstractVector{<:Number}; mode::Symbol=:full)
+    mode in (:full, :same, :valid) || throw(ArgumentError("mode must be :full, :same or :valid, got :$mode"))
+    N, M = length(a), length(b)
+    N ≥ 1 && M ≥ 1 || throw(ArgumentError("the inputs must not be empty"))
+    T = promote_type(float(eltype(a)), float(eltype(b)))
+    full = Vector{T}(DSP.conv(Vector{T}(a), Vector{T}(b)))
+    mode === :full && return full
+    mode === :same && return full[M ÷ 2 + 1:M ÷ 2 + N]
+    return N ≥ M ? full[M:N] : T[]
+end

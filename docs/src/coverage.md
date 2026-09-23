@@ -61,10 +61,10 @@ available offline.
 | `pyin` | — | not implemented (probabilistic YIN) |
 | `piptrack`, `estimate_tuning`, `pitch_tuning` | — | not implemented |
 | `zero_crossings` | [`zero_crossings`](@ref) | done |
-| `autocorrelate` | [`autocorrelate`](@ref) | done |
+| `autocorrelate` | [`autocorrelate`](@ref) (and [`xcorr`](@ref) for all lags and two signals) | done |
 | `lpc` | [`lpc`](@ref) (Burg) | structural |
-| `A_weighting`, `C_weighting` | [`A_weighting`](@ref), [`C_weighting`](@ref) | done |
-| `B_weighting`, `D_weighting`, `Z_weighting`, `frequency_weighting`, `multi_frequency_weighting` | — | not implemented |
+| `A_weighting`, `B_weighting`, `C_weighting`, `D_weighting` | [`A_weighting`](@ref), [`B_weighting`](@ref), [`C_weighting`](@ref), [`D_weighting`](@ref) | done; parity with audioFlux (A, B, C) |
+| `Z_weighting`, `frequency_weighting`, `multi_frequency_weighting` | — | not implemented |
 | `perceptual_weighting` | [`perceptual_weighting`](@ref) | done |
 | `amplitude_to_db`, `power_to_db`, `db_to_amplitude`, `db_to_power` | same names | done |
 | `pcen` | [`pcen`](@ref) | structural |

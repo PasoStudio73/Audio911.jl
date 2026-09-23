@@ -101,7 +101,8 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
   `Tempogram`, `tempo`, `beat_track`
 - `Hpss` harmonic/percussive separation (spectrograms or signals), `nmf`,
   `viterbi` and discrete `Hmm`s, `pcen`, `noisegate`, `SpectralGate`
-- unit conversions, dB scaling, weighting curves, synthesis, silence trimming, LPC
+- unit conversions, dB scaling, A/B/C/D weighting curves, synthesis (`synth_f0`),
+  silence trimming, LPC, `czt`, `xcorr`, `convolve`, `feature_scale`
 - `time_stretch`, `pitch_shift` and the `phase_vocoder`; band-limited sinc
   resampling (`resample(...; method=:sinc)`)
 

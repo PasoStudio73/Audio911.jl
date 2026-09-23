@@ -157,14 +157,20 @@ time_to_samples(t, sr::Int) = @. round(Int, t * sr) + 1
 #                                   decibels                                   #
 # ---------------------------------------------------------------------------- #
 """
-    power_to_db(S; ref=1, amin=1e-10, top_db=80) -> Array
+    power_to_db(S; ref=1, amin=1e-10, top_db=80, min_db=nothing) -> Array
 
 `10 log10(max(S, amin) / ref)`, clipped below `max - top_db` when `top_db`
-is given (librosa `power_to_db`). `ref` may be a number or a function of
-`S` such as `maximum`.
+is given (librosa `power_to_db`) and below `min_db` when it is given. `ref`
+may be a number or a function of `S` such as `maximum`.
+
+audioFlux's `power_to_db(X, min_db)` is `power_to_db(S; ref=maximum,
+top_db=-min_db)`; its absolute `power_to_abs_db(X, fft_length)` is
+`power_to_db(S; ref=fft_length^2, top_db=nothing, min_db=-80)` (and
+`mag_to_abs_db` the same with [`amplitude_to_db`](@ref) and
+`ref=fft_length`); their `is_norm` is `maximum(D) .- D`.
 """
 function power_to_db(S::AbstractArray{T}; ref::Union{Real,Function}=1, amin::Real=1e-10,
-                     top_db::Maybe{Real}=80) where {T<:Real}
+                     top_db::Maybe{Real}=80, min_db::Maybe{Real}=nothing) where {T<:Real}
     r = ref isa Function ? T(ref(S)) : T(ref)
     a = T(amin)
     D = similar(S, T)
@@ -177,17 +183,23 @@ function power_to_db(S::AbstractArray{T}; ref::Union{Real,Function}=1, amin::Rea
             D[i] = max(D[i], lo)
         end
     end
+    if !isnothing(min_db)
+        md = T(min_db)
+        @inbounds for i in eachindex(D)
+            D[i] = max(D[i], md)
+        end
+    end
     return D
 end
 
 """
-    amplitude_to_db(S; ref=1, amin=1e-5, top_db=80) -> Array
+    amplitude_to_db(S; ref=1, amin=1e-5, top_db=80, min_db=nothing) -> Array
 
 `20 log10(max(S, amin) / ref)` with clipping (librosa `amplitude_to_db`).
 """
 amplitude_to_db(S::AbstractArray{T}; ref::Union{Real,Function}=1, amin::Real=1e-5,
-                top_db::Maybe{Real}=80) where {T<:Real} =
-    power_to_db(S .^ 2; ref=ref isa Function ? x -> ref(sqrt.(x))^2 : ref^2, amin=amin^2, top_db)
+                top_db::Maybe{Real}=80, min_db::Maybe{Real}=nothing) where {T<:Real} =
+    power_to_db(S .^ 2; ref=ref isa Function ? x -> ref(sqrt.(x))^2 : ref^2, amin=amin^2, top_db, min_db)
 
 """
     db_to_power(D; ref=1)
@@ -229,6 +241,36 @@ function C_weighting(f::Real; min_db::Maybe{Real}=-80)
     num = 12194^2 * f2
     den = (f2 + 20.6^2) * (f2 + 12194^2)
     w = 20 * log10(num / den) + 0.06
+    return isnothing(min_db) ? w : max(w, min_db)
+end
+
+"""
+    B_weighting(f; min_db=-80)
+
+IEC 60651 B-weighting curve in dB at frequency `f` (Hz), floored at
+`min_db` (audioFlux `auditory_weight_b`, librosa `B_weighting`).
+"""
+function B_weighting(f::Real; min_db::Maybe{Real}=-80)
+    f2 = float(f)^2
+    w = 0.17 + 20 * (log10(12194.0^2) + 1.5 * log10(f2) - log10(f2 + 12194.0^2) -
+                     log10(f2 + 20.6^2) - 0.5 * log10(f2 + 158.5^2))
+    return isnothing(min_db) ? w : max(w, min_db)
+end
+
+"""
+    D_weighting(f; min_db=-80)
+
+IEC 537 D-weighting curve in dB at frequency `f` (Hz), floored at `min_db`
+(librosa `D_weighting`). audioFlux's `auditory_weight_d` has a typo in the
+second pole pair (`(3136.5² - f²)(1018.7² - f²)` for `(3136.5² - f²)²`),
+which lifts its curve by up to 9.8 dB (below 1 kHz); this is the standard
+curve.
+"""
+function D_weighting(f::Real; min_db::Maybe{Real}=-80)
+    f2 = float(f)^2
+    w = 20 * (0.5 * log10(f2) - log10(8.3046305e-3^2) +
+              0.5 * (log10((1018.7^2 - f2)^2 + 1039.6^2 * f2) - log10((3136.5^2 - f2)^2 + 3424.0^2 * f2) -
+                     log10(282.7^2 + f2) - log10(1160.0^2 + f2)))
     return isnothing(min_db) ? w : max(w, min_db)
 end
 
@@ -456,4 +498,135 @@ function get_samplerate(path::AbstractString)
         _sf_close(ptr)
         return Int(info.samplerate)
     end
+end
+
+# ---------------------------------------------------------------------------- #
+#                          audioFlux feature utilities                         #
+# ---------------------------------------------------------------------------- #
+# audioFlux utils/scale.py, convert.py (temproal_db) and util.py (synth_f0)
+# (MIT licence, Copyright (c) 2023 libAudioFlux).
+
+# quartile of a sorted vector at the 1-based position `p` (audioFlux's rule:
+# the element when p is whole, else the mean of its two neighbours)
+_quartile(s::AbstractVector, num::Int, den::Int) = begin
+    n = length(s)
+    i = (n + 1) * num ÷ den
+    (n + 1) * num % den == 0 ? s[max(i, 1)] : (s[max(i, 1)] + s[min(i + 1, n)]) / 2
+end
+
+function _scale_vec!(y::AbstractVector{T}, x::AbstractVector, method::Symbol, corrected::Bool) where T
+    if method === :minmax
+        lo, hi = extrema(x)
+        hi > lo ? (y .= (x .- lo) ./ (hi - lo)) : fill!(y, zero(T))
+    elseif method === :standard
+        μ = mean(x); σ = std(x; corrected)
+        σ > 0 ? (y .= (x .- μ) ./ σ) : fill!(y, zero(T))
+    elseif method === :maxabs
+        m = maximum(abs, x)
+        m > 0 ? (y .= x ./ m) : fill!(y, zero(T))
+    elseif method === :robust
+        s = sort(x)
+        q1, q2, q3 = _quartile(s, 1, 4), _quartile(s, 1, 2), _quartile(s, 3, 4)
+        q3 > q1 ? (y .= (x .- q2) ./ (q3 - q1)) : fill!(y, zero(T))
+    elseif method === :center
+        y .= x .- mean(x)
+    elseif method === :mean
+        lo, hi = extrema(x)
+        hi > lo ? (y .= (x .- mean(x)) ./ (hi - lo)) : fill!(y, zero(T))
+    elseif method === :arctan
+        y .= atan.(x) ./ (T(π) / 2)
+    else
+        throw(ArgumentError("method must be :minmax, :standard, :maxabs, :robust, :center, :mean or :arctan, got :$method"))
+    end
+    return y
+end
+
+"""
+    feature_scale(X; method=:minmax, dims=1, corrected=false) -> Array
+
+Scale every column (`dims=1`, audioFlux's samples × features layout) or
+row (`dims=2`) of a matrix, or a vector, with one of audioFlux's feature
+scalers (`utils.scale`):
+
+| `method` | result | audioFlux |
+|:---------|:-------|:----------|
+| `:minmax` | `(x - min) / (max - min)` | `min_max_scale` |
+| `:standard` | `(x - mean) / std` (`corrected=true` for the sample std) | `stand_scale` |
+| `:maxabs` | `x / max(abs(x))` | `max_abs_scale` |
+| `:robust` | `(x - median) / (Q3 - Q1)` | `robust_scale` |
+| `:center` | `x - mean` | `center_scale` |
+| `:mean` | `(x - mean) / (max - min)` | `mean_scale` |
+| `:arctan` | `atan(x) / (π/2)` | `arctan_scale` |
+
+A constant column gives zeros. The quartiles take the element at position
+`(n+1)/4` (or the mean of the two around it) of the sorted column;
+audioFlux reads them from the unsorted column, which only agrees for
+sorted data.
+"""
+function feature_scale(X::AbstractArray{<:Real}; method::Symbol=:minmax, dims::Int=1, corrected::Bool=false)
+    T = float(eltype(X))
+    Y = similar(X, T)
+    if X isa AbstractVector
+        _scale_vec!(Y, X, method, corrected)
+    else
+        dims in (1, 2) || throw(ArgumentError("dims must be 1 or 2, got $dims"))
+        for (y, x) in zip(eachslice(Y; dims=3 - dims), eachslice(X; dims=3 - dims))
+            _scale_vec!(y, x, method, corrected)
+        end
+    end
+    return Y
+end
+
+"""
+    temporal_db(x; base=18) -> (max_db, mean_db, quiet)
+
+Level summary of a signal (audioFlux `temproal_db`): the sample levels
+`20 log10(|x| + 10⁻⁸)`, floored at -36 dB, give their maximum and mean, and
+`quiet` is the fraction of samples at or below `-base` dB.
+"""
+function temporal_db(x::AbstractVector{<:Real}; base::Real=18)
+    isempty(x) && throw(ArgumentError("x is empty"))
+    T = float(eltype(x))
+    v = T[max(20 * log10(abs(s) + T(1e-8)), T(-36)) for s in x]
+    return maximum(v), mean(v), count(≤(-base), v) / length(v)
+end
+
+"""
+    synth_f0(times, frequencies, sr; amplitudes=nothing) -> Vector
+
+Synthesise the sinusoid of a pitch curve (audioFlux `synth_f0`): the
+frequencies (Hz) and amplitudes given at `times` (seconds) are linearly
+interpolated at every sample up to `floor(times[end] · sr)` (extrapolated
+linearly before `times[1]`, held after the end), and the phase is the
+running sum of `2π f / sr`. Amplitudes default to 1.
+"""
+function synth_f0(times::AbstractVector{<:Real}, frequencies::AbstractVector{<:Real}, sr::Int;
+                  amplitudes::Maybe{AbstractVector{<:Real}}=nothing)
+    n = length(times)
+    n == length(frequencies) || throw(DimensionMismatch("times and frequencies must have the same length"))
+    isnothing(amplitudes) || length(amplitudes) == n ||
+        throw(DimensionMismatch("amplitudes must have the length of times"))
+    n ≥ 1 || throw(ArgumentError("times is empty"))
+    T = float(promote_type(eltype(times), eltype(frequencies)))
+    N = floor(Int, times[end] * sr)
+    ts = T.(times) .* sr
+    ω = T.(frequencies) .* (2T(π) / sr)
+    function interp(vals, t, k)
+        while k < n && t > ts[k + 1]
+            k += 1
+        end
+        v = k < n ? vals[k] + (t - ts[k]) * (vals[k + 1] - vals[k]) / (ts[k + 1] - ts[k]) : vals[n]
+        return v, k
+    end
+    y = Vector{T}(undef, N)
+    amp = isnothing(amplitudes) ? nothing : T.(amplitudes)
+    kf = 1; ka = 1; φ = zero(T)
+    for i in 0:N-1
+        w, kf = interp(ω, T(i), kf)
+        φ += w
+        a = one(T)
+        isnothing(amp) || ((a, ka) = interp(amp, T(i), ka))
+        y[i + 1] = sin(φ) * a
+    end
+    return y
 end

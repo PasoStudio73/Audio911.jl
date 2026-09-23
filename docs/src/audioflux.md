@@ -169,13 +169,13 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 
 | audioFlux | Audio911 | definition | status | oracle |
 |:----------|:---------|:-----------|:-------|:-------|
-| `CZT(low_w, high_w)` | — | chirp-Z transform of a `2^k` block over the normalised frequency band `[low_w, high_w]` (Bluestein) | port: [`czt`](@ref) | fixture |
+| `CZT(low_w, high_w)` | — | chirp-Z transform of a `2^k` block: `N` points from `low_w` to `high_w` (excluded) in cycles per sample (Bluestein). The C function reads `2N` input samples, so the Python wrapper, which passes `N`, returns NaN; the oracle calls it with zero-padded buffers | port: [`czt`](@ref) (MATLAB's `czt(x, m, w, a)` and audioFlux's band form) | fixture through ctypes (full band and 0.05–0.2; float32 chirp phases) |
 | `hilbert` (C only) | — | analytic signal through the FFT | port: [`hilbert`](@ref) | structural (analytic-signal identities) |
-| `Xcorr(normal_type none/coeff)` | [`autocorrelate`](@ref) (auto only) | full cross-correlation `2N−1` lags, optional `coeff` normalisation | port: [`xcorr`](@ref) | fixture |
-| `conv(mode full/same/valid, method auto/direct/fft)` (C only) | — | linear convolution | port: [`convolve`](@ref) | structural |
+| `Xcorr(normal_type none/coeff)` | [`autocorrelate`](@ref) (auto only) | full cross-correlation `Σ x[n+l] y[n]` over `2N−1` lags (MATLAB's order), optional `coeff` normalisation by `√(Σx² Σy²)` | port: [`xcorr`](@ref) | fixture (cross, normalised, auto) |
+| `conv(mode full/same/valid, method auto/direct/fft)` (C only) | — | linear convolution; `same` keeps `length(a)` samples from `floor(length(b)/2)` (MATLAB's centring, one sample later than SciPy's for an even kernel) | port: [`convolve`](@ref) | fixture through ctypes (odd and even kernels, three modes, direct and FFT) |
 | `Resample(quality best/mid/fast, is_scale)`, `WindowResample(zero_num, nbit, win_type, value, roll_off)` | [`resample`](@ref) (polyphase FIR) | Smith's band-limited interpolation with a `2^nbit`-per-crossing sinc table (resampy's `resample_f` and its `kaiser_best`/`kaiser_fast` filters); `floor(n · ratio)` samples | extend existing: `resample(...; method=:sinc, quality, nzeros, rolloff, window, beta, scale)` | fixture (three qualities down, up and to 11025 Hz, and a Hann `WindowResample`) |
 | `phase_vocoder` | — | linear magnitude interpolation between frames and phase accumulation of the expected advance plus the wrapped deviation, zeros past the last frame (librosa's) | port: [`phase_vocoder`](@ref) | fixture (through `time_stretch`) |
-| `auditory_weight_a/b/c/d` | [`A_weighting`](@ref), [`C_weighting`](@ref) | A and C: same IEC 61672 curves (audioFlux uses 12200 Hz for A instead of 12194, floored at −80 dB). B and D are new | extend existing: [`B_weighting`](@ref), [`D_weighting`](@ref) | fixture |
+| `auditory_weight_a/b/c/d` | [`A_weighting`](@ref), [`C_weighting`](@ref) | A and C: the IEC 61672 curves floored at −80 dB (audioFlux uses 12200 Hz for A instead of 12194 and +0.062 dB for C instead of +0.06: at most 0.006 dB apart). B is librosa's. audioFlux's D has a typo, `(3136.5² − f²)(1018.7² − f²)` for `(3136.5² − f²)²`, which lifts it by up to 9.8 dB | extend existing: [`B_weighting`](@ref), [`D_weighting`](@ref) (the standard D curve) | fixture (A, B, C within 0.01 dB; D: the typo reproduced exactly) |
 | `dct`, `dft`, `fft` (internal) | FFTW, [`dct_ortho`](@ref) | internal helpers | already covered | — |
 | FIR/IIR design, `freqz` (`src/dsp/filterDesign_*`, internal) | DSP.jl | internal helpers not exposed in Python | out of scope (DSP.jl provides filter design) | — |
 
@@ -192,15 +192,15 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 
 | audioFlux | Audio911 | definition | status | oracle |
 |:----------|:---------|:-----------|:-------|:-------|
-| `power_to_db(min_db)` | [`power_to_db`](@ref) | `10 log10(S / max)` floored at `min_db`: `power_to_db(S; ref=maximum, top_db=-min_db)` | already covered | structural |
-| `power_to_abs_db`, `mag_to_abs_db(fft_length, is_norm, min_db)` | — | absolute dB relative to `fft_length` (and to the window sum when `is_norm`) | port: [`power_to_abs_db`](@ref), `mag_to_abs_db` | fixture |
-| `log_compress(gamma)`, `log10_compress(gamma)` | — | `log(1 + γ S)`, `log10(1 + γ S)` | port: [`log_compress`](@ref) | fixture |
-| `temproal_db(base)` | — | per-frame dB statistics (max, average, percentage above `base`) | port: [`temporal_db`](@ref) | fixture |
+| `power_to_db(min_db)` | [`power_to_db`](@ref) | `10 log10(S / max)` floored at `min_db`: `power_to_db(S; ref=maximum, top_db=-min_db)` | already covered | fixture |
+| `power_to_abs_db`, `mag_to_abs_db(fft_length, is_norm, min_db)` | [`power_to_db`](@ref), [`amplitude_to_db`](@ref) | `10 log10(S / fft_length²)` (or `20 log10(S / fft_length)`) floored at `min_db`; `is_norm` returns `max − dB` | extend existing: a `min_db` floor on both, so `power_to_db(S; ref=fft_length^2, top_db=nothing, min_db=-80)`; `is_norm` is `maximum(D) .- D` (no new names) | fixture |
+| `log_compress(gamma)`, `log10_compress(gamma)` | — | `log(1 + γ S)`, `log10(1 + γ S)` | already covered by Base (`log1p.(γ .* S)`, `log10.(1 .+ γ .* S)`); no wrapper added | fixture (the Base expressions) |
+| `temproal_db(base)` | — | sample levels `20 log10(|x| + 10⁻⁸)` floored at −36 dB: their maximum, their mean and the fraction at or below `−base` | port: [`temporal_db`](@ref) | fixture |
 | `delta(order)` | [`Delta`](@ref) | regression filter along the last axis: `Delta(source=:transposed)` | already covered | — |
 | `get_phase` | [`get_phase`](@ref) | `atan2(imag, real)` | port (with the complex accessor) | — |
 | `note_to_midi`, `midi_to_hz`, `note_to_hz`, `midi_to_note`, `hz_to_midi`, `hz_to_note` | same names | identical | already covered | — |
-| `min_max_scale`, `stand_scale`, `max_abs_scale`, `robust_scale`, `center_scale`, `mean_scale`, `arctan_scale` | — | per-row feature scaling | port: same names | structural |
-| `synth_f0(times, frequencies, samplate, amplitudes)` | [`tone`](@ref) (constant frequency) | additive synthesis of a pitch curve | port: [`synth_f0`](@ref) | structural |
+| `min_max_scale`, `stand_scale`, `max_abs_scale`, `robust_scale`, `center_scale`, `mean_scale`, `arctan_scale` | — | per-column scaling of a samples × features matrix; a constant column gives zeros. `robust_scale` reads its quartiles from the unsorted column, so it is only right for sorted data | port: one function, [`feature_scale`](@ref)`(X; method=:minmax/:standard/:maxabs/:robust/:center/:mean/:arctan)`, with sorted quartiles | fixture (every scaler; the robust one on sorted columns) |
+| `synth_f0(times, frequencies, samplate, amplitudes)` | [`tone`](@ref) (constant frequency) | frequency and amplitude interpolated at every sample up to `floor(t_end · sr)`, phase the running sum of `2π f / sr` | port: [`synth_f0`](@ref) | fixture (float32 phase accumulation) |
 | `queue_fre2`, `queue_fre3` | — | "queue frequency" ratios of two or three frequencies, implemented in the 7700-line `mir/_queue.c` without documentation | out of scope (no definition) | — |
 | `read`, `write`, `convert_mono`, `resample`, `chirp` (`audio.py`) | [`load`](@ref), [`to_mono`](@ref), [`resample`](@ref), [`chirp`](@ref) | audioFlux delegates to soundfile/scipy; `write` has no counterpart | `write`: out of scope (Audio911 is an analysis library; the loader is read-only) | — |
 | `sample_path`, `check_audio`, `ascontiguous_*` | — | Python conveniences | out of scope (n/a in Julia) | — |
@@ -216,7 +216,8 @@ tables; `Wvd`, `Cwd`, `emd`, `ewt`, `Hht`; the spectral descriptors;
 `Deconv`, `Cepstrogram`, `Ezr`, `xxcc_standard`; `Novelty`, the pitch
 methods, `harmonic_count`, the `HarmonicRatio` variant, HPSS signals, `nmf`, `Hmm`, `viterbi`; `phase_vocoder`,
 `time_stretch`, `pitch_shift`; `czt`, `hilbert`, `xcorr`, `convolve`, the
-sinc resampler, B/D weightings and the scaling utilities.
+sinc resampler, B/D weightings, `feature_scale`, `temporal_db` and
+`synth_f0`.
 
 Out of scope, with the reason given in the rows: the `Deep` spectrograms,
 `cqhc`, `PitchFFP`, `TuneTrack`, `queue_fre*`, the NMF-based HPSS named only in a

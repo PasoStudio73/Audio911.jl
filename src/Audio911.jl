@@ -219,7 +219,7 @@ export dwt, wpt, swt, Dwt, Wpt, Swt, DiscreteWavelet, wavelet_filters, DISCRETE_
 include("wavelet/dwt_coefs.jl")
 include("wavelet/dwt.jl")
 
-export hilbert
+export hilbert, czt, xcorr, convolve
 include("signal/dsp.jl")
 
 export wvd, Wvd, Cwd, CohenDistribution, get_distribution
@@ -264,7 +264,8 @@ export hz_to_mel, mel_to_hz, hz_to_midi, midi_to_hz, midi_to_note, note_to_midi,
 export fft_frequencies, mel_frequencies, cqt_frequencies, tempo_frequencies
 export frames_to_samples, samples_to_frames, frames_to_time, time_to_frames, samples_to_time, time_to_samples
 export power_to_db, amplitude_to_db, db_to_power, db_to_amplitude
-export A_weighting, C_weighting, perceptual_weighting
+export A_weighting, B_weighting, C_weighting, D_weighting, perceptual_weighting
+export feature_scale, temporal_db, synth_f0
 export mu_compress, mu_expand, normalize_signal
 export tone, chirp, clicks, trim_silence, split_silence, lpc, get_samplerate
 include("signal/utils.jl")
