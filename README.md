@@ -63,6 +63,9 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
   on the same frame grid as the STFT; synchrosqueezing (`Wsst`, `Synsq`)
 - **Discrete wavelets** (`dwt`, `wpt`, `swt` and the `Dwt`, `Wpt`, `Swt` front
   ends) with 51 wavelet families
+- **Wigner-Ville and Choi-Williams distributions** (`Wvd`, `Cwd`), **empirical
+  mode decomposition** and the **Hilbert-Huang spectrum** (`emd`, `Hht`), the
+  **empirical wavelet transform** (`ewt`, `Ewt`)
 - **Constant-Q / variable-Q transform** (`Cqt`), **pseudo wavelet transform**
   (`Pwt`), **S-transform** and **fast S-transform** (`St`, `Fst`),
   **non-stationary Gabor transform** (`Nsgt`), ported from audioFlux and

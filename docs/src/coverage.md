@@ -150,6 +150,7 @@ available offline.
 | `stft`, `istft` | [`Stft`](@ref), [`istft`](@ref) | done |
 | `cwt` (Wavelet Toolbox) | [`Cwt`](@ref), [`cwt`](@ref) (`morse`, `morlet`, `bump`, `paul`, `dog`, `mexican`, `hermit`, `ricker`, L1 normalisation) | parity with audioFlux |
 | `wavedec`, `wpdec`, `swt`, `modwt` (Wavelet Toolbox) | [`dwt`](@ref), [`wpt`](@ref), [`swt`](@ref) (periodic extension, 51 wavelets), [`Dwt`](@ref), [`Wpt`](@ref), [`Swt`](@ref) | parity with audioFlux |
+| `wvd`, `emd`, `hht`, `ewt` (Signal Processing and Wavelet Toolboxes), `hilbert` | [`Wvd`](@ref), [`wvd`](@ref), [`Cwd`](@ref), [`emd`](@ref), [`Hht`](@ref), [`ewt`](@ref), [`Ewt`](@ref), [`hilbert`](@ref) | structural |
 | `wsst`, `fsst` (Wavelet Toolbox, Signal Processing Toolbox) | [`Wsst`](@ref), [`wsst`](@ref); `fsst` is the STFT counterpart, see [`Reassign`](@ref) | parity with audioFlux |
 | `noiseGate` | [`noisegate`](@ref); plus [`SpectralGate`](@ref) for a frequency range | structural |
 | `detectSpeech`, `voiceActivityDetector` | — | not implemented |

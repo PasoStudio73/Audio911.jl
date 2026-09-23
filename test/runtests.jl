@@ -34,6 +34,7 @@ test_suites = [
     ("Complex STFT and reassignment", ["reassign.jl"]),
     ("Wavelets and synchrosqueezing", ["cwt_af.jl"]),
     ("Discrete wavelets", ["dwt.jl"]),
+    ("Cohen class and adaptive decompositions", ["adaptive.jl"]),
 ]
 
 @testset "Audio911.jl" begin

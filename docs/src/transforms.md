@@ -141,3 +141,53 @@ plot(r; freq_scale=:log10)
 The result keeps the STFT's frequency grid and frames, so it feeds every
 downstream stage. It agrees with audioFlux to single precision
 (`test/audioflux_files/reassign/`).
+
+## Cohen-class distributions
+
+[`Wvd`](@ref) is the pseudo Wigner-Ville distribution at the centre of
+every frame: the lag product `z[n+m] conj(z[n-m])` of the analytic signal
+([`hilbert`](@ref)), weighted by the frame window over the lag and Fourier
+transformed. It has twice the frequency resolution of an STFT with the same
+window, and interference terms between components. [`Cwd`](@ref), the
+Choi-Williams distribution, first smooths the lag products over time with
+the kernel `exp(-σ μ²/4m²)`, which attenuates those terms. Both return a
+[`CohenDistribution`](@ref): `get_spec` is clipped at zero as the
+interface requires, [`get_distribution`](@ref) is the signed distribution.
+[`wvd`](@ref) is the whole-signal Wigner-Ville distribution for short
+signals.
+
+```julia
+w = Wvd(Frames(audio; winsize=256, winstep=128, type=hanning))
+c = Cwd(Frames(audio; winsize=256, winstep=128, type=hanning); sigma=0.5)
+```
+
+## Empirical mode decomposition and the Hilbert-Huang spectrum
+
+[`emd`](@ref) sifts a signal into intrinsic mode functions (Huang et al.
+1998): the mean of the cubic-spline envelopes through the maxima and the
+minima is subtracted until the sifting converges, the fastest oscillation
+first; the IMFs and the residual add up to the signal. [`Hht`](@ref) is
+the Hilbert-Huang spectrum: the instantaneous power of every IMF at its
+instantaneous frequency, pooled on the frames ([`get_imfs`](@ref) returns
+the IMFs).
+
+```julia
+imfs, residual = emd(x)
+h = Hht(frames; nbins=257)
+```
+
+## Empirical wavelet transform
+
+[`ewt`](@ref) builds an adaptive wavelet filter bank (Gilles 2013): the
+spectrum is segmented between its largest peaks and a Meyer-type tight
+frame is placed on the segments, splitting the signal into `nbands`
+components. [`Ewt`](@ref) pools the components on the frames.
+
+```julia
+components, bounds = ewt(x, 16000; nbands=5)
+e = Ewt(frames; nbands=5)
+```
+
+audioFlux declares these five algorithms without implementing them; the
+ports follow the cited papers and are tested structurally (marginals,
+reconstruction, separation of known components).

@@ -219,6 +219,15 @@ export dwt, wpt, swt, Dwt, Wpt, Swt, DiscreteWavelet, wavelet_filters, DISCRETE_
 include("wavelet/dwt_coefs.jl")
 include("wavelet/dwt.jl")
 
+export hilbert
+include("signal/dsp.jl")
+
+export wvd, Wvd, Cwd, CohenDistribution, get_distribution
+include("transforms/cohen.jl")
+
+export emd, Hht, get_imfs, ewt, Ewt
+include("transforms/emd.jl")
+
 export Reassign, get_reassigned
 include("transforms/reassign.jl")
 
