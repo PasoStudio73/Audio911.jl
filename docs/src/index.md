@@ -53,7 +53,7 @@ Inspired by MATLAB's audio feature extraction toolkit, Audio911.jl guarantees th
 
 ### Extras
 - **Modular Design**: Compose your own audio processing pipelines by chaining algorithms
-- **Multi-Format Audio**: Load WAV, MP3, FLAC and OGG files via [AudioReader.jl](https://github.com/PasoStudio73/AudioReader.jl)
+- **Multi-Format Audio**: Load WAV, FLAC, OGG and MP3 files with the built-in loader (libsndfile and mpg123), no external audio package needed
 - **On-the-Fly Resampling**: Built-in sample rate conversion
 
 ## Installation

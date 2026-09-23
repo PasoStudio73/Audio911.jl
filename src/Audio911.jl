@@ -2,25 +2,28 @@ module Audio911
 using  Reexport
 
 # ---------------------------------------------------------------------------- #
-#                                audio reader                                  #
-# ---------------------------------------------------------------------------- #
-@reexport using AudioReader: @format_str, File, AudioFormat, AudioFile, load
-@reexport using AudioReader: get_origin_sr, get_nchannels, is_norm
-
-using  AudioReader: AudioFormat, _convert_mono
-import AudioReader: get_data, get_sr
-
-# ---------------------------------------------------------------------------- #
 #                           audio related packages                             #
 # ---------------------------------------------------------------------------- #
-using  FFTW, DSP
+using  FFTW
+import DSP
 using  LinearAlgebra
 using  Statistics: mean
 using  Plots
 
+# codecs for the internal audio loader
+using  libsndfile_jll: libsndfile
+using  mpg123_jll: libmpg123
+
 # ---------------------------------------------------------------------------- #
 #                               abstract types                                 #
 # ---------------------------------------------------------------------------- #
+"""
+    AbstractAudioFile
+
+Supertype of loaded audio ([`AudioFile`](@ref)).
+"""
+abstract type AbstractAudioFile end
+
 """
     AbstractSetup
 
@@ -148,11 +151,24 @@ export winpower, winmagnitude
 @reexport using DSP: rect, hanning, hamming, cosine, lanczos, triang
 @reexport using DSP: bartlett, bartlett_hann, blackman
 
+# accessor generics shared by audio files and every stage
+function get_data end
+function get_sr end
+
+export @format_str, File, AudioFormat, AudioFile, load
+export filename, file_extension, formatname, detect_format
+export get_origin_sr, get_nchannels, is_norm, get_path
+export to_mono, normalize_peak
+include("audio/formats.jl")
+include("audio/libsndfile.jl")
+include("audio/mpg123.jl")
+include("audio/audiofile.jl")
+
 export get_spec, get_spectrum, get_window, get_winnorm
 export get_nbins, get_nframes, get_times, get_offset, get_duration
 include("interface.jl")
 
-export Frames, povey
+export Frames, povey, movingwindow
 export preemphasis, deemphasis
 include("frames.jl")
 

@@ -41,3 +41,8 @@ f1 = Frames(a1)
 f2 = Frames(a2)
 @test get_data(f1) == get_data(f2)
 
+# the `win` keyword accepts movingwindow(...) for compatibility
+f3 = Frames(a2; win=movingwindow(winsize=512, winstep=256))
+f4 = Frames(a2; winsize=512, winstep=256)
+@test get_data(f3) == get_data(f4)
+@test get_winsize(Stft(a2; win=movingwindow(winsize=1024))) == 1024

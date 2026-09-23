@@ -266,6 +266,7 @@ function Stft(
     sr         :: Int64;
     winsize    :: Int64=sr ≤ 8000 ? 256 : 512,
     winstep    :: Int64=winsize ÷ 2,
+    win        :: Maybe{NamedTuple}=nothing,
     type       :: Base.Callable=hanning,
     periodic   :: Bool=true,
     center     :: Bool=false,
@@ -274,7 +275,7 @@ function Stft(
     dc_removal :: Bool=false,
     kwargs...
 )
-    frames = Frames(audio, sr; winsize, winstep, type, periodic, center, pad_mode, preemph, dc_removal)
+    frames = Frames(audio, sr; winsize, winstep, win, type, periodic, center, pad_mode, preemph, dc_removal)
     return Stft(frames; kwargs...)
 end
 

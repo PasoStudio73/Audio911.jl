@@ -283,13 +283,14 @@ function Cwt(
     sr       :: Int64;
     winsize  :: Int64=sr ≤ 8000 ? 256 : 512,
     winstep  :: Int64=winsize ÷ 2,
+    win      :: Maybe{NamedTuple}=nothing,
     type     :: Base.Callable=rect,
     periodic :: Bool=true,
     center   :: Bool=false,
     pad_mode :: Symbol=:constant,
     kwargs...
 )
-    frames = Frames(audio, sr; winsize, winstep, type, periodic, center, pad_mode)
+    frames = Frames(audio, sr; winsize, winstep, win, type, periodic, center, pad_mode)
     return Cwt(frames; kwargs...)
 end
 

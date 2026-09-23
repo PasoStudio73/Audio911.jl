@@ -24,6 +24,25 @@ function _make_window(::Type{T}, type::Base.Callable, n::Int, periodic::Bool) wh
     return Vector{T}(w)
 end
 
+"""
+    movingwindow(; winsize, winstep=winsize ÷ 2) -> NamedTuple
+
+Framing parameters as a named tuple, accepted by the `win` keyword of
+[`Frames`](@ref), [`Stft`](@ref) and [`Cwt`](@ref):
+`Stft(audio; win=movingwindow(winsize=512, winstep=256))` is the same as
+`Stft(audio; winsize=512, winstep=256)`. Kept for compatibility with the
+DataTreatments-based API.
+"""
+movingwindow(; winsize::Int64, winstep::Int64=winsize ÷ 2) = (; winsize, winstep)
+
+# resolve the `win` keyword against explicit winsize/winstep
+function _winparams(win, winsize, winstep)
+    isnothing(win) && return winsize, winstep
+    ws = get(win, :winsize, winsize)
+    st = get(win, :winstep, ws ÷ 2)
+    return ws, st
+end
+
 # ---------------------------------------------------------------------------- #
 #                                 pre-emphasis                                 #
 # ---------------------------------------------------------------------------- #
@@ -300,6 +319,7 @@ A multi-channel matrix is averaged to mono first.
 # Keyword Arguments
 - `winsize::Int`: frame length in samples (default 256 for `sr ≤ 8000`, else 512)
 - `winstep::Int`: hop in samples (default `winsize ÷ 2`)
+- `win`: alternatively, both as `movingwindow(winsize=..., winstep=...)`
 - `type::Base.Callable=hanning`: window function, one of `rect`, `hanning`,
   `hamming`, `cosine`, `lanczos`, `triang`, `bartlett`, `bartlett_hann`,
   `blackman`, `povey`
@@ -335,6 +355,7 @@ function Frames(
     sr         :: Int64;
     winsize    :: Int64=sr ≤ 8000 ? 256 : 512,
     winstep    :: Int64=winsize ÷ 2,
+    win        :: Maybe{NamedTuple}=nothing,
     type       :: Base.Callable=hanning,
     periodic   :: Bool=true,
     center     :: Bool=false,
@@ -342,6 +363,7 @@ function Frames(
     preemph    :: Real=0,
     dc_removal :: Bool=false,
 )
+    winsize, winstep = _winparams(win, winsize, winstep)
     x = _to_mono(audio)
     T = eltype(x)
 
