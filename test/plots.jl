@@ -66,6 +66,11 @@ recipe(x; kw...) = RecipesBase.apply_recipe(Dict{Symbol,Any}(kw...), x)
 
     rd = recipe(Hpss(stft))
     @test length(rd) == 2
+
+    for d in (SpectralHfc(stft), SpectralNovelty(stft), SpectralCd(stft), SpectralPeak(stft))
+        rd = recipe(d)
+        @test length(rd) == 1 && length(rd[1].args[2]) == n
+    end
 end
 
 @testset "recipes: audioFlux ports" begin

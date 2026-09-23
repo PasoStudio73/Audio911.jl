@@ -36,6 +36,8 @@ provide it (`Stft`, `Cqt`, ...) either return the matrix they kept
 unchanged. See the [design page](@ref design_complex).
 """
 function get_complex end
+get_complex(s::AbstractSpectrogram) = throw(ArgumentError(
+    "$(nameof(typeof(s))) does not provide complex coefficients; use a front end (Stft, Cqt, Cwt, ...)"))
 
 """
     get_phase(s::AbstractSpectrogram) -> Matrix

@@ -114,8 +114,8 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 | `crest` | [`SpectralCrest`](@ref) | identical | already covered | MATLAB |
 | `slope` | [`SpectralSlope`](@ref) | identical | already covered | MATLAB |
 | `decrease` | [`SpectralDecrease`](@ref) | identical | already covered | MATLAB |
-| `band_width(p)` | [`SpectralBandwidth`](@ref) | audioFlux: `(Σ S |f − c|^p)^(1/p)` without normalising `S` to unit sum (librosa and Audio911 normalise) | extend existing: `normalize` keyword | fixture |
-| `rms` | [`Rms`](@ref)`(spec)` | audioFlux: `sqrt(2 Σ' S² / nbins²)` with half weight on DC and Nyquist, `S` the magnitude; Audio911 divides by `nfft²` (librosa) | extend existing: `SpectralRms` descriptor with audioFlux's normalisation | fixture |
+| `band_width(p)` | [`SpectralBandwidth`](@ref) | audioFlux: `(Σ S (f − c)^p)^(1/p)` without normalising `S` to unit sum (librosa and Audio911 normalise), and with the signed deviation raised to `p` (Audio911 uses `|f − c|^p`, which differs for `p ≠ 2`) | extend existing: `normalize` keyword | fixture (`p = 2`) |
+| `rms` | [`Rms`](@ref)`(spec)` | audioFlux: `sqrt(2 Σ' S² / nbins²)` with half weight on DC (and on the last bin when their number is even), `S` the magnitude; Audio911's `Rms` divides by `nfft²` (librosa) | extend existing: [`SpectralRms`](@ref) with audioFlux's normalisation | fixture |
 | `energy(is_log, gamma)` | — | `mean(S²)` over the bins (`S` if power), optionally `log(1 + γ S²)` | port: [`SpectralEnergy`](@ref) | fixture |
 | `hfc` | — | high-frequency content `Σ k · S_k` (bin index weighted) | port: [`SpectralHfc`](@ref) | fixture |
 | `sd(step, is_positive)` | — | spectral difference `Σ |S_t − S_{t−step}|` | port: [`SpectralSd`](@ref) | fixture |
@@ -127,7 +127,7 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 | `novelty(step, threshold, method_type, data_type)` | — | per-bin novelty `sub`/`entropy`/`kl`/`is` against frame `t−step`, summed (`value`) or counted (`number`) where above `threshold` | port: [`SpectralNovelty`](@ref) | fixture |
 | `eef(is_norm)` | — | energy–entropy feature `sqrt(1 + |energy · entropy|)` | port: [`SpectralEef`](@ref) | fixture |
 | `eer(is_norm, gamma)` | — | `sqrt(1 + |log(1 + γ energy) / entropy|)` | port: [`SpectralEer`](@ref) | fixture |
-| `max`, `mean`, `var` | — | per-frame maximum (value and its frequency), mean (value and mean frequency), variance of both | port: [`SpectralMax`](@ref), [`SpectralMean`](@ref), [`SpectralVar`](@ref) | fixture |
+| `max`, `mean`, `var` | — | per-frame maximum (value and its frequency), mean and sample variance of the values; the frequency outputs of `mean` and `var` are the mean and variance of the band frequencies, the same for every frame | port: [`SpectralMax`](@ref), [`SpectralPeak`](@ref) (frequency of the maximum), [`SpectralMean`](@ref), [`SpectralVar`](@ref); the constant frequency outputs are not ported | fixture |
 | `set_edge`, `set_edge_arr` (bin subsets) | `freqrange` on [`LinSpec`](@ref) | descriptors on a bin range are descriptors of a `LinSpec` | already covered | — |
 
 ## Features: cepstra, deconvolution, chroma

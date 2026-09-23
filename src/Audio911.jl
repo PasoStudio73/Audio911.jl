@@ -254,6 +254,11 @@ export SpectralFlatness, SpectralFlux, SpectralKurtosis, SpectralRolloff
 export SpectralSkewness, SpectralSlope, SpectralSpread, SpectralBandwidth
 include("fft/spectral.jl")
 
+export SpectralEnergy, SpectralRms, SpectralHfc, SpectralSd, SpectralSf, SpectralMkl
+export SpectralPd, SpectralWpd, SpectralNwpd, SpectralCd, SpectralRcd, SpectralBroadband
+export SpectralNovelty, SpectralEef, SpectralEer, SpectralMax, SpectralPeak, SpectralMean, SpectralVar
+include("fft/spectral_af.jl")
+
 # signal utilities: conversions, decibels, weighting, synthesis, trim, lpc
 export hz_to_mel, mel_to_hz, hz_to_midi, midi_to_hz, midi_to_note, note_to_midi, hz_to_note, note_to_hz
 export fft_frequencies, mel_frequencies, cqt_frequencies, tempo_frequencies
