@@ -285,3 +285,24 @@ frequency), one heatmap each.
         end
     end
 end
+
+"""
+    plot(h::Hmm)
+
+Transition and emission matrices of a hidden Markov model, one heatmap each.
+"""
+@recipe function f(h::Hmm)
+    layout := (1, 2)
+    S, K = size(h.B)
+    for (i, (name, M, xl)) in enumerate((("Transitions", h.A, "To state"), ("Emissions", h.B, "Symbol")))
+        @series begin
+            subplot := i
+            seriestype := :heatmap
+            title --> name
+            xguide --> xl
+            yguide --> "State"
+            yflip --> true
+            collect(1:size(M, 2)), collect(1:S), M
+        end
+    end
+end

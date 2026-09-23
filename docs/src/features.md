@@ -41,6 +41,10 @@ bpm, beats = beat_track(env)
   with zeros as audioFlux does.
 - [`nmf`](@ref): non-negative matrix factorisation of a spectrogram into
   spectral templates and activations (KL, Itakura–Saito or Euclidean).
+- [`viterbi`](@ref): most likely state path from frame likelihoods and a
+  transition matrix; [`Hmm`](@ref) is a discrete hidden Markov model with
+  [`hmm_predict`](@ref), [`hmm_decode`](@ref), [`hmm_train`](@ref) (Baum-Welch)
+  and [`hmm_generate`](@ref).
 - [`pcen`](@ref): per-channel energy normalisation.
 - [`noisegate`](@ref): MATLAB-style time-domain gate with attack, release and hold.
 - [`SpectralGate`](@ref): the same idea on a frequency range of a spectrogram.

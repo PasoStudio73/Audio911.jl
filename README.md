@@ -99,7 +99,7 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
 - `OnsetStrength`, audioFlux's `Novelty` onset envelopes, `onset_detect`,
   `Tempogram`, `tempo`, `beat_track`
 - `Hpss` harmonic/percussive separation (spectrograms or signals), `nmf`,
-  `pcen`, `noisegate`, `SpectralGate`
+  `viterbi` and discrete `Hmm`s, `pcen`, `noisegate`, `SpectralGate`
 - unit conversions, dB scaling, weighting curves, synthesis, silence trimming, LPC
 
 ### Extras

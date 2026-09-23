@@ -101,6 +101,8 @@ end
     @test length(recipe(Ezr(frames))[1].args[2]) == n
     fb = cqt_chroma_fbank(Cqt(frames; nbins=60))
     @test length(recipe(fb)) == 12
+    rd = recipe(Hmm([0.5, 0.5], [0.9 0.1; 0.2 0.8], [0.7 0.2 0.1; 0.1 0.3 0.6]))
+    @test length(rd) == 2 && size(rd[1].args[3]) == (2, 2) && size(rd[2].args[3]) == (2, 3)
 end
 
 # one end-to-end check with a real backend (GR, headless)

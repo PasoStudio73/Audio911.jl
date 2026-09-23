@@ -113,11 +113,12 @@ available offline.
 
 | librosa | Audio911 | status |
 |:--------|:---------|:-------|
-| `decompose.hpss` | [`Hpss`](@ref) | structural |
+| `decompose.hpss` | [`Hpss`](@ref) | parity with audioFlux `HPSS` (`edge=:zero`) |
 | `decompose.decompose` (NMF) | [`nmf`](@ref) (KL, Itakura–Saito or Euclidean multiplicative updates) | parity with audioFlux `nmf` |
 | `decompose.nn_filter` | — | not implemented |
 | `segment.*` (recurrence, agglomerative) | — | not implemented |
-| `sequence.*` (DTW, Viterbi) | — | not implemented |
+| `sequence.viterbi` | [`viterbi`](@ref) (and the discrete [`Hmm`](@ref)) | parity with audioFlux `viterbi` and `hmm` |
+| `sequence.dtw`, `viterbi_discriminative`, `viterbi_binary`, `transition_*` | — | not implemented |
 | `display.specshow`, `waveshow` | Plots recipes for every stage, see [Plotting](@ref plotting) | done |
 
 ## MATLAB Audio Toolbox
