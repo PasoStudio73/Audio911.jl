@@ -40,6 +40,7 @@ test_suites = [
     ("Pitch estimators", ["pitch_af.jl"]),
     ("Novelty onsets", ["onset_af.jl"]),
     ("HPSS signals", ["hpss_af.jl"]),
+    ("NMF", ["nmf_af.jl"]),
 ]
 
 @testset "Audio911.jl" begin

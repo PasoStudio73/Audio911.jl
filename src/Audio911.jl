@@ -293,6 +293,9 @@ include("features/hpss.jl")
 export xxcc_standard, Deconv, get_timbre, get_pitch, Cepstrogram, get_quefrency, get_envelope, get_details, Ezr
 include("features/af_features.jl")
 
+export nmf
+include("classic/nmf.jl")
+
 # ---------------------------------------------------------------------------- #
 #                                  methods                                     #
 # ---------------------------------------------------------------------------- #

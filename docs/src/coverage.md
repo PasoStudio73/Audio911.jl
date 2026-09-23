@@ -114,7 +114,8 @@ available offline.
 | librosa | Audio911 | status |
 |:--------|:---------|:-------|
 | `decompose.hpss` | [`Hpss`](@ref) | structural |
-| `decompose.decompose` (NMF), `nn_filter` | — | not implemented |
+| `decompose.decompose` (NMF) | [`nmf`](@ref) (KL, Itakura–Saito or Euclidean multiplicative updates) | parity with audioFlux `nmf` |
+| `decompose.nn_filter` | — | not implemented |
 | `segment.*` (recurrence, agglomerative) | — | not implemented |
 | `sequence.*` (DTW, Viterbi) | — | not implemented |
 | `display.specshow`, `waveshow` | Plots recipes for every stage, see [Plotting](@ref plotting) | done |

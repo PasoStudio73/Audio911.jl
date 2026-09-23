@@ -183,7 +183,7 @@ All on any spectrogram (audioFlux `Spectral`, `spectrogramObj_*`, `bftObj`).
 
 | audioFlux | Audio911 | definition | status | oracle |
 |:----------|:---------|:-----------|:-------|:-------|
-| `nmf(k, max_iter, tp kl/is/euc, thresh, norm)` | — | multiplicative updates for the KL, Itakura–Saito and Euclidean divergences, column normalisation max/sum/L2 | port: [`nmf`](@ref) | fixture |
+| `nmf(k, max_iter, tp kl/is/euc, thresh, norm)` | — | multiplicative updates for the KL, Itakura–Saito and Euclidean divergences (the code's type codes are 0 KL, 1 IS, 2 Euclidean, unlike its header comment), `H` then `W` from the same `WH`, the columns of `W` renormalised by their max, L1 or L2 norm; the Python wrapper starts from ramps `1, 2, 3, ...` | port: [`nmf`](@ref) (`init=:audioflux` for the ramps; NNDSVD-A by default) | fixture (every divergence and norm, 20 and 300 iterations, float32 agreement) |
 | `hmm` (C only: init, predict, decode, train, generate) | — | discrete HMM: forward likelihood, Viterbi decoding, Baum–Welch training, sampling | port: [`Hmm`](@ref) with `predict`, `decode`, `fit!`, `generate` | structural |
 | `viterbi` (C only) | — | Viterbi path with log or linear probabilities | port: [`viterbi`](@ref) | structural |
 | `trist` (internal) | — | helper of the STFT pitch method | folded into `pitch_stft` | — |

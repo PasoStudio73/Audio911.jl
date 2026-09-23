@@ -39,6 +39,8 @@ bpm, beats = beat_track(env)
   `Stft`, the separated signals ([`get_harmonic_signal`](@ref),
   [`get_percussive_signal`](@ref)). `edge=:zero` pads the median filters
   with zeros as audioFlux does.
+- [`nmf`](@ref): non-negative matrix factorisation of a spectrogram into
+  spectral templates and activations (KL, Itakura–Saito or Euclidean).
 - [`pcen`](@ref): per-channel energy normalisation.
 - [`noisegate`](@ref): MATLAB-style time-domain gate with attack, release and hold.
 - [`SpectralGate`](@ref): the same idea on a frequency range of a spectrogram.
@@ -47,6 +49,7 @@ bpm, beats = beat_track(env)
 h   = Hpss(stft; kernel=(31, 31), power=2)
 mel = MelSpec(get_harmonic(h); nbands=40)
 yh  = get_harmonic_signal(h)                               # back to the time domain
+W, H = nmf(Stft(audio; spectrum=magnitude), 8)            # templates × activations
 g   = SpectralGate(stft; threshold=-50, freqrange=(40, 120))   # gate the hum band only
 ```
 
