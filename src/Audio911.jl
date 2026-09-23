@@ -188,6 +188,9 @@ export Stft
 export power, magnitude
 include("fft/stft.jl")
 
+export istft
+include("fft/istft.jl")
+
 export Cwt
 export morlet, morse, bump
 include("wavelet/cwt.jl")
@@ -208,6 +211,9 @@ include("transforms/whole.jl")
 include("transforms/pwt.jl")
 include("transforms/st.jl")
 include("transforms/nsgt.jl")
+
+export Reassign, get_reassigned
+include("transforms/reassign.jl")
 
 export LinSpec
 include("fft/lin_spec.jl")

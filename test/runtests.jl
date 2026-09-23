@@ -31,6 +31,7 @@ test_suites = [
     ("audioFlux filterbanks", ["af_fbank.jl"]),
     ("CQT", ["cqt.jl"]),
     ("Transforms", ["transforms.jl"]),
+    ("Complex STFT and reassignment", ["reassign.jl"]),
 ]
 
 @testset "Audio911.jl" begin

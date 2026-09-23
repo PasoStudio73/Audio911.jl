@@ -33,7 +33,9 @@ struct Stft{T<:AudioData} <: AbstractSpectrogram
     freq   :: StepRangeLen{T}
     frames :: Frames{T}
     info   :: StftSetup{T}
+    cplx   :: Maybe{Matrix{Complex{T}}}
 end
+Stft{T}(spec, freq, frames, info) where {T<:AudioData} = Stft{T}(spec, freq, frames, info, nothing)
 
 #------------------------------------------------------------------------------#
 #                                   methods                                    #
@@ -164,9 +166,12 @@ function _chunks(n::Int)
 end
 
 # stream the windowed frames through a pre-planned real FFT, one frame at a
-# time, writing `spectrum(X)` straight into the output columns
-function _stft!(spec::Matrix{T}, frames::Frames{T}, nfft::Int, spectrum::Base.Callable) where T
-    w  = get_window(frames)
+# time, writing `spectrum(X)` straight into the output columns. `w` is the
+# analysis window (the frames' own by default; reassignment passes the
+# derivative and time-weighted windows); `spectrum=identity` with a complex
+# `spec` gives the complex STFT.
+function _stft!(spec::AbstractMatrix, frames::Frames{T}, nfft::Int, spectrum::Base.Callable,
+                w::AbstractVector{T}=get_window(frames)) where T
     ws = length(w)
     n  = size(spec, 2)
     n == 0 && return spec
@@ -209,6 +214,9 @@ plus a few `nfft`-length buffers.
 - `spectrum::Base.Callable`: `power` (default) or `magnitude`
 - `scale::Real=1`: multiply the spectrum by a constant (`1/nfft` reproduces
   python_speech_features' `powspec`)
+- `keep_complex::Bool=false`: also keep the complex STFT for
+  [`get_complex`](@ref) (otherwise it is recomputed on request); the real
+  spectrogram is then derived from it
 
 # Throws
 `ArgumentError` if `nfft < winsize` or the frames do not overlap.
@@ -228,6 +236,7 @@ function Stft(
     nfft     :: Int64=get_winsize(frames),
     spectrum :: Base.Callable=power,
     scale    :: Real=1,
+    keep_complex :: Bool=false,
 ) where {T<:AudioData}
     sr      = get_sr(frames)
     winsize = get_winsize(frames)
@@ -242,15 +251,36 @@ function Stft(
     spectrum in (power, magnitude) ||
         throw(ArgumentError("spectrum must be `power` or `magnitude`, got $spectrum"))
 
-    spec = Matrix{T}(undef, _onesided_length(nfft), length(frames))
-    _stft!(spec, frames, nfft, spectrum)
+    cplx = nothing
+    if keep_complex
+        cplx = Matrix{Complex{T}}(undef, _onesided_length(nfft), length(frames))
+        _stft!(cplx, frames, nfft, identity)
+        spec = spectrum(cplx)
+    else
+        spec = Matrix{T}(undef, _onesided_length(nfft), length(frames))
+        _stft!(spec, frames, nfft, spectrum)
+    end
     scale == 1 || (spec .*= T(scale))
 
     freq = (0:size(spec, 1)-1) .* (T(sr) / T(nfft))
     info = StftSetup{T}(sr, nfft, winsize, get_step(frames), overlap, spectrum,
                         get_window(frames), get_offset(frames), Float64(scale))
 
-    return Stft{T}(spec, freq, frames, info)
+    return Stft{T}(spec, freq, frames, info, cplx)
+end
+
+"""
+    get_complex(s::Stft) -> Matrix{Complex}
+
+The complex one-sided STFT `X[k, j] = Σ_n w[n] x_j[n] e^{-2πi k n / nfft}`,
+`bins × frames`: the matrix kept with `keep_complex=true`, otherwise
+recomputed from the frames. The `scale` keyword of `Stft` applies to the
+real spectrogram only.
+"""
+function get_complex(s::Stft{T}) where T
+    isnothing(s.cplx) || return s.cplx
+    C = Matrix{Complex{T}}(undef, get_nbins(s), get_nframes(s))
+    return _stft!(C, s.frames, get_nfft(s), identity)
 end
 
 """

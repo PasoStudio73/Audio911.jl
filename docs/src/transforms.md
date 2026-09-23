@@ -116,3 +116,28 @@ n = Nsgt(frames; nbands=84, scale=octave, style=hanning, norm=bandwidth)
 cells, freq, lengths = nsgt(get_signal(frames), 16000)
 M = nsgt_matrix(cells, lengths, length(get_signal(frames)) / 16000, maximum(lengths))
 ```
+
+## Reassigned spectrogram
+
+[`Reassign`](@ref) moves every cell of an [`Stft`](@ref) to its local
+centre of gravity (Auger & Flandrin 1995): the instantaneous frequency
+`f − Im(S_dh / S_h) · sr / 2π` and the group delay `t + Re(S_th / S_h) / sr`,
+where `S_dh` and `S_th` are the STFTs with the derivative of the window and
+the time-weighted window. Cells weaker than `thresh` stay in place;
+`mode=:freq` or `:time` reassigns one axis only and `order > 1` repeats the
+frequency reassignment. With `accumulate=:complex` (audioFlux's default)
+the complex values, re-referenced to the window centre, are added in their
+new cell; `accumulate=:energy` adds their power instead and conserves the
+total energy. [`get_reassigned`](@ref) returns the reassigned frequency and
+time of every cell (librosa `reassigned_spectrogram`).
+
+```julia
+stft = Stft(audio; winsize=512, winstep=128, type=hanning)
+r    = Reassign(stft)                    # sharper, same grid
+f, t = get_reassigned(r)
+plot(r; freq_scale=:log10)
+```
+
+The result keeps the STFT's frequency grid and frames, so it feeds every
+downstream stage. It agrees with audioFlux to single precision
+(`test/audioflux_files/reassign/`).

@@ -144,6 +144,10 @@ The contract keeps the existing paths unchanged:
 - **`keep_complex=true`** at construction stores the complex matrix next
   to the real one, for callers that will ask for it repeatedly. The real
   spectrogram is then derived from it, so the two are always consistent.
+- **`Stft`** recomputes the complex STFT frame by frame into one matrix,
+  or keeps it with `keep_complex=true`; [`istft`](@ref) inverts it.
+- **Derived front ends** such as [`Reassign`](@ref) read `get_complex` of
+  their parent and store only their own result.
 - **Pooled front ends** (`Pwt`, `St`, `Fst`, `Nsgt`) have one
   complex series per band at the full signal rate. Their `get_complex`
   returns those series sampled at the frame centres, which is the value

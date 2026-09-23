@@ -74,7 +74,8 @@ end
     n = length(frames)
     for s in (Cqt(frames; nbins=60), Pwt(frames; nbands=40, scale=octave),
               Nsgt(frames; nbands=40, scale=octave), St(frames; freqrange=(0, 300)),
-              Fst(frames; freqrange=(0, 2000)), MelSpec(Stft(frames); nbands=30, scale=erb, style=hanning))
+              Fst(frames; freqrange=(0, 2000)), MelSpec(Stft(frames); nbands=30, scale=erb, style=hanning),
+              Reassign(Stft(frames)))
         rd = recipe(s)
         @test length(rd) == 1
         t, f, z = rd[1].args

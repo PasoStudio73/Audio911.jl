@@ -24,5 +24,25 @@ type). [`get_nfft`](@ref), [`get_spectrum`](@ref), [`get_window`](@ref),
 `scale` multiplies the spectrum by a constant (python_speech_features uses
 `1/nfft`).
 
-The complex STFT is not kept, which is why inverse transforms are not
-offered; see the [coverage table](@ref coverage).
+## Complex STFT and inverse
+
+The complex STFT is not stored unless asked for:
+[`get_complex`](@ref) recomputes it from the frames (or returns the matrix
+kept with `keep_complex=true`), and [`get_phase`](@ref) gives its phase.
+The real spectrogram, and therefore every MATLAB parity result, is the
+same either way (see [complex coefficients on request](@ref design_complex)).
+
+[`istft`](@ref) inverts it by weighted overlap-add (`method=:wola`, the
+default of audioFlux, librosa and MATLAB) or plain overlap-add
+(`method=:ola`). With centred frames and a window that satisfies the
+overlap condition (Hann at 50 % or 75 % overlap) the reconstruction is
+exact:
+
+```julia
+stft = Stft(audio; winsize=1024, winstep=256, center=true, keep_complex=true)
+y    = istft(stft)                                  # ≈ get_data(audio)
+y2   = istft(get_complex(stft), 1024, 256; window=hanning, offset=-512)
+```
+
+The phase-aware stages ([`Reassign`](@ref), the phase-deviation onset
+descriptors, the phase vocoder) build on this accessor.

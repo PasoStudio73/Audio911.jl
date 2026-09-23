@@ -47,12 +47,13 @@ available offline.
 | `to_mono` | [`to_mono`](@ref) | done |
 | `resample` | [`resample`](@ref) (polyphase FIR, `DSP.resample`) | done |
 | `get_duration`, `get_samplerate` | [`get_duration`](@ref), [`get_samplerate`](@ref) | done |
-| `stft` | [`Stft`](@ref) (power or magnitude; the complex STFT is not kept) | parity |
-| `istft`, `griffinlim`, `phase_vocoder` | — | not implemented (need the complex STFT) |
-| `reassigned_spectrogram` | — | not implemented |
+| `stft` | [`Stft`](@ref) (power or magnitude; the complex STFT through [`get_complex`](@ref)) | parity |
+| `istft` | [`istft`](@ref) (weighted or plain overlap-add) | parity with audioFlux |
+| `griffinlim`, `phase_vocoder` | — | not implemented |
+| `reassigned_spectrogram` | [`Reassign`](@ref), [`get_reassigned`](@ref) | parity with audioFlux `reassign` |
 | `cqt`, `vqt` | [`Cqt`](@ref) (spectral-kernel CQT, `gamma` for the VQT) | parity with audioFlux (top octave exact) |
 | `hybrid_cqt`, `pseudo_cqt`, `iirt` | [`Cqt`](@ref) covers the same representation; the hybrid/pseudo evaluation shortcuts and the IIR filterbank are not reproduced | partial |
-| `magphase` | — | not implemented |
+| `magphase` | [`get_spec`](@ref) and [`get_phase`](@ref) | done |
 | `fmt` | — | not implemented |
 | `interp_harmonics`, `salience` | — | not implemented |
 | `yin` | [`Pitch`](@ref) with [`pitch_yin`](@ref) | structural |
@@ -146,7 +147,7 @@ available offline.
 | `cepstralCoefficients` | [`Mfcc`](@ref) on any spectrogram | parity |
 | `audioDelta` | [`Delta`](@ref) | parity |
 | `melSpectrogram` | [`MelSpec`](@ref) | parity |
-| `stft`, `istft` | [`Stft`](@ref); no inverse | partial |
+| `stft`, `istft` | [`Stft`](@ref), [`istft`](@ref) | done |
 | `cwt` (Wavelet Toolbox) | [`Cwt`](@ref) (`morse`, `morlet`, `bump`, L1 normalisation) | structural |
 | `noiseGate` | [`noisegate`](@ref); plus [`SpectralGate`](@ref) for a frequency range | structural |
 | `detectSpeech`, `voiceActivityDetector` | — | not implemented |

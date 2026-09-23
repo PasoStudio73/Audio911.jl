@@ -64,6 +64,8 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
   (`Pwt`), **S-transform** and **fast S-transform** (`St`, `Fst`),
   **non-stationary Gabor transform** (`Nsgt`), ported from audioFlux and
   checked against it
+- **Complex coefficients on request** (`get_complex`, `get_phase`), the
+  inverse STFT (`istft`) and the **reassigned spectrogram** (`Reassign`)
 
 ### Spectrograms and filterbanks
 - `LinSpec`, `MelSpec` (HTK or Slaney mel), `BarkSpec`, `ErbSpec` (gammatone)
