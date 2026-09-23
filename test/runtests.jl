@@ -24,6 +24,8 @@ test_suites = [
     ("Spectral", ["spectral.jl"]),
     ("Pipeline", ["pipeline.jl"]),
     ("Mfcc variants", ["mfcc_variants.jl"]),
+    ("Features", ["features.jl"]),
+    ("Signal utils", ["signal.jl"]),
 ]
 
 @testset "Audio911.jl" begin

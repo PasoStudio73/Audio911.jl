@@ -197,7 +197,7 @@ macro descriptor(name, setup, doc)
             info   :: $(esc(setup))
         end
         Base.eltype(::$(esc(name)){F,T}) where {F,T} = T
-        get_parent(x::$(esc(name))) = x.parent
+        Audio911.get_parent(x::$(esc(name))) = x.parent
         function Base.show(io::IO, x::$(esc(name)){F,T}) where {F,T}
             print(io, $(string(name)), "{", nameof(F), ",", T, "}(", length(x.spec), " frames)")
         end

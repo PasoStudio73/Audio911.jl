@@ -7,7 +7,8 @@ using  Reexport
 using  FFTW
 import DSP
 using  LinearAlgebra
-using  Statistics: mean
+using  Statistics: mean, std, median
+using  Printf: @sprintf
 using  Plots
 
 # codecs for the internal audio loader
@@ -208,6 +209,31 @@ export SpectralCentroid, SpectralCrest, SpectralDecrease, SpectralEntropy
 export SpectralFlatness, SpectralFlux, SpectralKurtosis, SpectralRolloff
 export SpectralSkewness, SpectralSlope, SpectralSpread, SpectralBandwidth
 include("fft/spectral.jl")
+
+# signal utilities: conversions, decibels, weighting, synthesis, trim, lpc
+export hz_to_mel, mel_to_hz, hz_to_midi, midi_to_hz, midi_to_note, note_to_midi, hz_to_note, note_to_hz
+export fft_frequencies, mel_frequencies, cqt_frequencies, tempo_frequencies
+export frames_to_samples, samples_to_frames, frames_to_time, time_to_frames, samples_to_time, time_to_samples
+export power_to_db, amplitude_to_db, db_to_power, db_to_amplitude
+export A_weighting, C_weighting, perceptual_weighting
+export mu_compress, mu_expand, normalize_signal
+export tone, chirp, clicks, trim_silence, split_silence, lpc, get_samplerate
+include("signal/utils.jl")
+
+# frame-level and derived features
+export Rms, Energy, Zcr, Pitch, HarmonicRatio
+export zero_crossings, autocorrelate, pitch_ncf, pitch_yin, pitch_cep
+include("features/timedomain.jl")
+
+export Chroma, ChromaFBank, chroma_fbank, hz_to_octs, Tonnetz, SpectralContrast, PolyFeatures
+include("features/chroma.jl")
+
+export OnsetStrength, peak_pick, onset_detect, Tempogram, tempo, beat_track
+include("features/onset.jl")
+
+export DerivedSpec, Hpss, get_harmonic, get_percussive, get_masks, get_name
+export noisegate, SpectralGate, pcen
+include("features/hpss.jl")
 
 # ---------------------------------------------------------------------------- #
 #                                  methods                                     #
