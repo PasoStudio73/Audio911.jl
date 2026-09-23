@@ -68,9 +68,17 @@ stft_spec = Audio911.Stft(audioframes, nfft=1024, spectrum=power)
 
 stft_spec = Audio911.Stft(audio; nfft=1024, winsize=512, winstep=492, type=hanning, spectrum=power)
 
-# siamo nel dominio delle frequenze e possiamo plottarne il risultato:
+# siamo nel dominio delle frequenze e possiamo plottarne il risultato.
+# Audio911 definisce le ricette per Plots: basta caricare Plots e chiamare `plot`
+# (Plots non è una dipendenza del pacchetto, va aggiunto al proprio ambiente):
+#
+#   using Plots
+#   plot(stft_spec; freq_scale=:log10)
 
-Audio911.plot(stft_spec)
+# lo stesso spettrogramma si può ottenere con una trasformata wavelet al posto della stft,
+# e tutto ciò che segue accetta indifferentemente l'una o l'altra:
+
+cwt_spec = Audio911.Cwt(audioframes; voices=12, freqrange=(50, 4000))
 
 # lo spettrogramma generato dalla stft è ancora troppo dettagliato per poter permettere un analisi efficace.
 # soprattutto è lineare, mentre l'esperienza ha insegnato che uno spettrogramma logaritmico,
@@ -87,3 +95,13 @@ mel_spec = MelSpec(stft_spec, fbank; win_norm=true)
 # o più conciso, senza bisogno di calcolare il filterbank in anticipo:
 mel_spec = MelSpec(stft_spec; win_norm=true, freqrange=(100,1000), nbands=26, norm=bandwidth, domain=:linear, scale=htk)
 
+# e infine i coefficienti cepstrali, con le loro derivate temporali:
+mfcc  = Mfcc(mel_spec; ncoeffs=13, rect=mlog)
+delta = Delta(mfcc)
+
+# gli stessi coefficienti come li calcolerebbero HTK, Kaldi o librosa:
+mfcc_k = mfcc_kaldi(audio)
+mfcc_l = mfcc_librosa(audio)
+
+# ogni stadio conosce la propria griglia temporale:
+get_times(mfcc)
