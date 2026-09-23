@@ -191,8 +191,8 @@ include("fft/stft.jl")
 export istft
 include("fft/istft.jl")
 
-export Cwt
-export morlet, morse, bump
+export Cwt, cwt
+export morlet, morse, bump, paul, dog, mexican, hermit, ricker
 include("wavelet/cwt.jl")
 
 export FBank
@@ -211,6 +211,9 @@ include("transforms/whole.jl")
 include("transforms/pwt.jl")
 include("transforms/st.jl")
 include("transforms/nsgt.jl")
+
+export synsq, wsst, Synsq, Wsst, Synchrosqueezed
+include("wavelet/synsq.jl")
 
 export Reassign, get_reassigned
 include("transforms/reassign.jl")

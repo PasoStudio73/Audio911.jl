@@ -58,8 +58,9 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
 ### Time-frequency front ends
 - **STFT** (`Stft`): pre-planned real FFT streamed over lazy frames, threaded,
   power or magnitude spectrum
-- **Wavelet scalogram** (`Cwt`): Morlet, Morse or bump wavelets, pooled on the
-  same frame grid as the STFT
+- **Wavelet scalogram** (`Cwt`): Morlet, Morse, bump, Paul, DOG, Mexican hat,
+  Hermitian and Ricker wavelets on a geometric or any filterbank grid, pooled
+  on the same frame grid as the STFT; synchrosqueezing (`Wsst`, `Synsq`)
 - **Constant-Q / variable-Q transform** (`Cqt`), **pseudo wavelet transform**
   (`Pwt`), **S-transform** and **fast S-transform** (`St`, `Fst`),
   **non-stationary Gabor transform** (`Nsgt`), ported from audioFlux and

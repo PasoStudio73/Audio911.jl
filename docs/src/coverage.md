@@ -148,7 +148,8 @@ available offline.
 | `audioDelta` | [`Delta`](@ref) | parity |
 | `melSpectrogram` | [`MelSpec`](@ref) | parity |
 | `stft`, `istft` | [`Stft`](@ref), [`istft`](@ref) | done |
-| `cwt` (Wavelet Toolbox) | [`Cwt`](@ref) (`morse`, `morlet`, `bump`, L1 normalisation) | structural |
+| `cwt` (Wavelet Toolbox) | [`Cwt`](@ref), [`cwt`](@ref) (`morse`, `morlet`, `bump`, `paul`, `dog`, `mexican`, `hermit`, `ricker`, L1 normalisation) | parity with audioFlux |
+| `wsst`, `fsst` (Wavelet Toolbox, Signal Processing Toolbox) | [`Wsst`](@ref), [`wsst`](@ref); `fsst` is the STFT counterpart, see [`Reassign`](@ref) | parity with audioFlux |
 | `noiseGate` | [`noisegate`](@ref); plus [`SpectralGate`](@ref) for a frequency range | structural |
 | `detectSpeech`, `voiceActivityDetector` | — | not implemented |
 | `integratedLoudness`, `loudnessMeter`, `splMeter` | — | not implemented |

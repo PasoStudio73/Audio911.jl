@@ -32,6 +32,7 @@ test_suites = [
     ("CQT", ["cqt.jl"]),
     ("Transforms", ["transforms.jl"]),
     ("Complex STFT and reassignment", ["reassign.jl"]),
+    ("Wavelets and synchrosqueezing", ["cwt_af.jl"]),
 ]
 
 @testset "Audio911.jl" begin

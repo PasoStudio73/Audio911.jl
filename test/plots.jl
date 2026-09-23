@@ -75,7 +75,8 @@ end
     for s in (Cqt(frames; nbins=60), Pwt(frames; nbands=40, scale=octave),
               Nsgt(frames; nbands=40, scale=octave), St(frames; freqrange=(0, 300)),
               Fst(frames; freqrange=(0, 2000)), MelSpec(Stft(frames); nbands=30, scale=erb, style=hanning),
-              Reassign(Stft(frames)))
+              Reassign(Stft(frames)), Wsst(Cwt(frames; scale=octave, nbands=60, freqrange=(33, 8000))),
+              Cwt(frames; wavelet=paul, scale=octave, nbands=60, freqrange=(33, 8000)))
         rd = recipe(s)
         @test length(rd) == 1
         t, f, z = rd[1].args

@@ -147,8 +147,10 @@ The contract keeps the existing paths unchanged:
 - **`Stft`** recomputes the complex STFT frame by frame into one matrix,
   or keeps it with `keep_complex=true`; [`istft`](@ref) inverts it.
 - **Derived front ends** such as [`Reassign`](@ref) read `get_complex` of
-  their parent and store only their own result.
-- **Pooled front ends** (`Pwt`, `St`, `Fst`, `Nsgt`) have one
+  their parent and store only their own result; the synchrosqueezed
+  scalograms ([`Wsst`](@ref), [`Synsq`](@ref)) recompute the band series of
+  their `Cwt` and add energies straight into the pooled output.
+- **Pooled front ends** (`Cwt`, `Pwt`, `St`, `Fst`, `Nsgt`) have one
   complex series per band at the full signal rate. Their `get_complex`
   returns those series sampled at the frame centres, which is the value
   the phase-aware stages need on the frame grid.
