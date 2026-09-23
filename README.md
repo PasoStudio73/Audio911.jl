@@ -35,7 +35,9 @@ onsets and tempo, harmonic/percussive separation, and the utilities around
 them. Where MATLAB's Audio Toolbox has a feature, Audio911 reproduces it
 numerically (the test suite checks against `audioFeatureExtractor`
 fixtures); where librosa has one, the coverage table in the docs says
-whether and how it is covered.
+whether and how it is covered. The algorithms of
+[audioFlux](https://github.com/libAudioFlux/audioFlux) are ported and checked
+against audioFlux itself; the inventory page lists every one of them.
 
 ## Features
 
@@ -46,10 +48,11 @@ wavelet scalogram feed the same mel filterbank, cepstrum and descriptors:
 
 ```
 load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
-                             └─▶ Cwt ───┼─▶ LinSpec ─────────────▶ Spectral*
-                                        ├─▶ MelSpec / BarkSpec ─▶ Mfcc ─▶ Delta
-                                        ├─▶ ErbSpec ─────────────▶ Gtcc ─▶ Delta
-                                        └─▶ Chroma, Tonnetz, Contrast, Onset, Hpss, ...
+                             ├─▶ Cwt ───┤
+                             ├─▶ Cqt ───┼─▶ LinSpec ─────────────▶ Spectral*
+                             ├─▶ Pwt ───┼─▶ MelSpec / BarkSpec ─▶ Mfcc ─▶ Delta
+                             ├─▶ Nsgt ──┼─▶ ErbSpec ─────────────▶ Gtcc ─▶ Delta
+                             └─▶ St/Fst ┴─▶ Chroma, Tonnetz, Contrast, Onset, Hpss, ...
 ```
 
 ### Time-frequency front ends
@@ -57,9 +60,16 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
   power or magnitude spectrum
 - **Wavelet scalogram** (`Cwt`): Morlet, Morse or bump wavelets, pooled on the
   same frame grid as the STFT
+- **Constant-Q / variable-Q transform** (`Cqt`), **pseudo wavelet transform**
+  (`Pwt`), **S-transform** and **fast S-transform** (`St`, `Fst`),
+  **non-stationary Gabor transform** (`Nsgt`), ported from audioFlux and
+  checked against it
 
 ### Spectrograms and filterbanks
 - `LinSpec`, `MelSpec` (HTK or Slaney mel), `BarkSpec`, `ErbSpec` (gammatone)
+- audioFlux's `linspace`, `erb`, `octave` and `logspace` scales and window
+  filter styles (`hanning`, `gauss`, `kaiser`, `bohman`, `point`, ...) on any
+  filterbank stage
 - filterbank design on any frequency grid: `auditory_fbank`, `gammatone_fbank`,
   `chroma_fbank`, plus the integer-bin banks of ETSI and python_speech_features
 

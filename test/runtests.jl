@@ -28,6 +28,9 @@ test_suites = [
     ("Signal utils", ["signal.jl"]),
     ("Plots", ["plots.jl"]),
     ("Allocations", ["allocations.jl"]),
+    ("audioFlux filterbanks", ["af_fbank.jl"]),
+    ("CQT", ["cqt.jl"]),
+    ("Transforms", ["transforms.jl"]),
 ]
 
 @testset "Audio911.jl" begin

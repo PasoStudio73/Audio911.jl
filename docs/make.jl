@@ -23,6 +23,7 @@ makedocs(;
             "Frames"        => "frames.md",
             "STFT"          => "stft.md",
             "Wavelets"      => "cwt.md",
+            "Constant-Q and other transforms" => "transforms.md",
             "Filterbanks"   => "filterbanks.md",
             "Spectrograms"  => "spectrograms.md",
             "Cepstra"       => "cepstra.md",

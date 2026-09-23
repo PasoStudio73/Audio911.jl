@@ -11,10 +11,11 @@ value that an upstream stage already knows.
 
 ```
 load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
-                             │          ├─▶ LinSpec ─────────────▶ Spectral*
-                             └─▶ Cwt ───┤   MelSpec / BarkSpec ─▶ Mfcc ─▶ Delta
-                                        │   ErbSpec ─────────────▶ Gtcc ─▶ Delta
-                                        └─▶ Chroma, Contrast, Tonnetz, Onset, ...
+                             ├─▶ Cwt ───┤
+                             ├─▶ Cqt ───┼─▶ LinSpec ─────────────▶ Spectral*
+                             ├─▶ Pwt ───┤   MelSpec / BarkSpec ─▶ Mfcc ─▶ Delta
+                             ├─▶ Nsgt ──┤   ErbSpec ─────────────▶ Gtcc ─▶ Delta
+                             └─▶ St/Fst ┘   Chroma, Contrast, Tonnetz, Onset, ...
 ```
 
 The point of the design is the vertical bar in the middle: **any
@@ -110,6 +111,46 @@ mel_b = MelSpec(Cwt(audio; winsize=512, winstep=256, voices=12); nbands=26)
 
 mfcc_a, mfcc_b = Mfcc(mel_a), Mfcc(mel_b)
 ```
+
+- **`Cqt`** – the constant-Q (and variable-Q) transform. Sparse spectral
+  kernels are applied to an FFT window centred on every frame; the top
+  octave uses the shortest power-of-two window that holds its kernels and
+  every octave below doubles it. The `Frames` object fixes only the time
+  grid. Its grid is geometric (`bins_per_octave` per octave from `fmin`).
+- **`Pwt`, `St`, `Fst`, `Nsgt`** – whole-signal transforms (pseudo wavelet,
+  S-transform, fast S-transform, non-stationary Gabor). The whole signal is
+  transformed once and every band is pooled over the frames exactly like
+  `Cwt`, so each has one column per frame. `Nsgt` also keeps its cells, the
+  band series at their own time resolution.
+
+## [Complex coefficients on request](@id design_complex)
+
+A front end stores only the real `power` or `magnitude` matrix, which is
+what every downstream stage reads and what bounds the memory of a pipeline.
+Phase-aware stages (reassignment, synchrosqueezing, phase-deviation
+onsets, the phase vocoder, inverse transforms) need the complex
+coefficients, so the interface has a second, optional accessor:
+
+| accessor           | returns                                          |
+|:-------------------|:-------------------------------------------------|
+| `get_complex(s)`   | `Matrix{Complex{T}}`, **bins × frames**, the coefficients `get_spec` was derived from |
+| `get_phase(s)`     | `angle.(get_complex(s))`                          |
+
+The contract keeps the existing paths unchanged:
+
+- **Nothing is kept by default.** A front end built as before holds the
+  same fields and the same memory; `get_complex` recomputes the
+  coefficients from its `Frames` (which keep the signal) when asked.
+- **`keep_complex=true`** at construction stores the complex matrix next
+  to the real one, for callers that will ask for it repeatedly. The real
+  spectrogram is then derived from it, so the two are always consistent.
+- **Pooled front ends** (`Pwt`, `St`, `Fst`, `Nsgt`) have one
+  complex series per band at the full signal rate. Their `get_complex`
+  returns those series sampled at the frame centres, which is the value
+  the phase-aware stages need on the frame grid.
+
+The real matrices, their orientation and the MATLAB parity fixtures are not
+affected: `get_spec` never goes through the complex path.
 
 ## Frames are lazy
 

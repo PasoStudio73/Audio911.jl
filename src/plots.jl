@@ -90,6 +90,51 @@ dB relative to the maximum, clipped `top_db` below it, unless `db=false`.
     collect(get_times(s)), freq, z
 end
 
+"""
+    plot(c::Cqt; db=true, top_db=80, freq_scale=:log10)
+
+Constant-Q coefficients as a heatmap on a logarithmic frequency axis.
+"""
+@recipe function f(c::Cqt; db=true, top_db=80, freq_scale=:log10)
+    z = db ? _to_db(c, top_db) : get_spec(c)
+    freq = collect(get_freq(c))
+    if freq_scale != :linear
+        yscale --> freq_scale
+        yticks --> _freq_ticks(freq)
+    end
+    seriestype := :heatmap
+    xguide --> "Time (s)"
+    yguide --> "Frequency (Hz)"
+    colorbar_title --> (db ? "dB" : string(get_spectrum(c)))
+    title --> "Cqt ($(get_setup(c).bins_per_octave)/octave)"
+    collect(get_times(c)), freq, z
+end
+
+"""
+    plot(s::Union{Pwt,Nsgt}; db=true, top_db=80, freq_scale=:log10)
+    plot(s::Union{St,Fst}; db=true, top_db=80, freq_scale=:linear)
+
+Heatmaps of the pooled whole-signal transforms; the scale-based ones
+default to a logarithmic frequency axis.
+"""
+@recipe function f(s::Union{Pwt,Nsgt,St,Fst}; db=true, top_db=80,
+                   freq_scale=(s isa Union{Pwt,Nsgt} ? :log10 : :linear))
+    z = db ? _to_db(s, top_db) : get_spec(s)
+    freq = collect(get_freq(s))
+    if freq_scale != :linear
+        keep = findall(>(0), freq)
+        freq = freq[keep]; z = z[keep, :]
+        yscale --> freq_scale
+        yticks --> _freq_ticks(freq)
+    end
+    seriestype := :heatmap
+    xguide --> "Time (s)"
+    yguide --> "Frequency (Hz)"
+    colorbar_title --> (db ? "dB" : string(get_spectrum(s)))
+    title --> string(nameof(typeof(s)))
+    collect(get_times(s)), freq, z
+end
+
 @recipe function f(c::Chroma)
     seriestype := :heatmap
     xguide --> "Time (s)"

@@ -124,9 +124,14 @@ and apply it. `spec` can be any front end (`Stft`, `Cwt`, ...).
 # Keyword Arguments
 - `win_norm::Bool=true`: window normalisation
 - `nbands::Int=26`: number of bands
-- `scale=htk`: `htk` or `slaney` mel scale (use [`BarkSpec`](@ref) for bark)
+- `scale=htk`: `htk` or `slaney` mel scale (use [`BarkSpec`](@ref) for bark),
+  or one of audioFlux's `linspace`, `erb`, `octave`, `logspace` scales: the
+  stage is the generic triangular-filterbank spectrogram, its name is
+  historical
 - `norm=bandwidth`: `bandwidth`, `area` or `none_norm`
 - `domain=:linear`: `:linear` or `:warped` triangle design
+- `style=triangular`: band shape, see [`auditory_fbank`](@ref)
+- `bins_per_octave=12`: for `scale=octave`
 - `freqrange::FreqRange=(0, sr÷2)`
 
 # Examples
@@ -144,9 +149,10 @@ function MelSpec(
     kwargs...
 )
     scale = get(kwargs, :scale, htk)
-    scale in (htk, slaney) || throw(ArgumentError(
-        "MelSpec only supports `htk` or `slaney` scale, got `$(nameof(scale))`."
-    ))
+    scale === bark && throw(ArgumentError(
+        "MelSpec does not take the bark scale; use BarkSpec."))
+    scale in AVAIL_SCALES || throw(ArgumentError(
+        "scale must be one of $(AVAIL_SCALES), got `$(nameof(scale))`."))
     fbank = auditory_fbank(get_sr(s); sfreq=get_freq(s), kwargs...)
     MelSpec(s, fbank; win_norm)
 end

@@ -19,7 +19,8 @@ available offline.
 | librosa | Audio911 | status |
 |:--------|:---------|:-------|
 | `chroma_stft` | [`Chroma`](@ref), [`chroma_fbank`](@ref) | structural |
-| `chroma_cqt`, `chroma_cens`, `chroma_vqt` | `Chroma(Cwt(...))` gives a chromagram on a geometric grid; CENS smoothing not implemented | partial |
+| `chroma_cqt`, `chroma_vqt` | [`Chroma`](@ref)`(::Cqt)` with [`cqt_chroma_fbank`](@ref) | parity with audioFlux `CQT.chroma` |
+| `chroma_cens` | — | not implemented (CENS quantisation and smoothing) |
 | `melspectrogram` | [`MelSpec`](@ref) (`scale=slaney, norm=bandwidth`) | parity (MATLAB fixtures); librosa settings structural |
 | `mfcc` | [`Mfcc`](@ref), [`mfcc_librosa`](@ref) | structural |
 | `rms` | [`Rms`](@ref) (frames or spectrogram) | structural |
@@ -49,7 +50,8 @@ available offline.
 | `stft` | [`Stft`](@ref) (power or magnitude; the complex STFT is not kept) | parity |
 | `istft`, `griffinlim`, `phase_vocoder` | — | not implemented (need the complex STFT) |
 | `reassigned_spectrogram` | — | not implemented |
-| `cqt`, `vqt`, `hybrid_cqt`, `pseudo_cqt`, `iirt` | [`Cwt`](@ref) with `bump`/`morlet` gives a constant-Q scalogram; librosa's CQT kernel not reproduced | partial |
+| `cqt`, `vqt` | [`Cqt`](@ref) (spectral-kernel CQT, `gamma` for the VQT) | parity with audioFlux (top octave exact) |
+| `hybrid_cqt`, `pseudo_cqt`, `iirt` | [`Cqt`](@ref) covers the same representation; the hybrid/pseudo evaluation shortcuts and the IIR filterbank are not reproduced | partial |
 | `magphase` | — | not implemented |
 | `fmt` | — | not implemented |
 | `interp_harmonics`, `salience` | — | not implemented |
@@ -90,7 +92,8 @@ available offline.
 |:--------|:---------|:-------|
 | `mel` | [`auditory_fbank`](@ref) | parity |
 | `chroma` | [`chroma_fbank`](@ref) | structural |
-| `constant_q`, `wavelet`, `wavelet_lengths`, `semitone_filterbank`, `mr_frequencies` | `Cwt` wavelets ([`morlet`](@ref), [`morse`](@ref), [`bump`](@ref)) | partial |
+| `constant_q`, `wavelet`, `wavelet_lengths` | [`Cqt`](@ref) kernels ([`get_bandwidth`](@ref) gives the lengths), `Cwt` wavelets | partial |
+| `semitone_filterbank`, `mr_frequencies` | — | not implemented (time-domain IIR filterbank) |
 | `get_window` | DSP windows reexported plus [`povey`](@ref) | done |
 | `window_bandwidth`, `window_sumsquare`, `diagonal_filter`, `cq_to_chroma` | — | not implemented |
 
@@ -155,12 +158,16 @@ available offline.
 | `kbdwin`, window functions | DSP windows, [`povey`](@ref) | partial |
 | `vggishFeatures`, `openl3`, deep-learning helpers | — | out of scope |
 
+## audioFlux
+
+Every algorithm of audioFlux, with its counterpart, whether the definitions
+agree and how each port is tested, is in the [audioFlux inventory](@ref audioflux).
+
 ## Not reached in this pass
 
 Inverse transforms (`istft`, `griffinlim`, `mel_to_audio`), the
-probabilistic pitch tracker (`pyin`), tuning estimation, librosa's CQT
-kernels, time stretching and pitch shifting, loudness meters, speech
-detection, NMF decomposition, segmentation and sequence alignment are
-listed above as not implemented. They are omitted deliberately, not
+probabilistic pitch tracker (`pyin`), tuning estimation, time stretching
+and pitch shifting, loudness meters, speech detection, NMF decomposition,
+segmentation and sequence alignment are listed above as not implemented. They are omitted deliberately, not
 silently: each needs either the complex STFT (which the pipeline does not
 keep, to bound memory) or a substantial algorithm of its own.

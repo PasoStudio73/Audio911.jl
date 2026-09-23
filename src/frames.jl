@@ -9,10 +9,68 @@ Kaldi's default analysis window, a Hann window raised to the power 0.85:
 """
 povey(n::Integer) = [(0.5 - 0.5 * cospi(2k / (n - 1)))^0.85 for k in 0:n-1]
 
-# availables window functions from package DSP, plus povey
+"""
+    triangular
+
+Default filter style of [`auditory_fbank`](@ref): a triangle rising from the
+previous centre to the band centre and falling to the next one (audioFlux
+`SLANEY` style, MATLAB's `designAuditoryFilterBank`).
+"""
+triangular(n::Integer) = bartlett(n)
+
+"""
+    etsi
+
+Filter style of audioFlux's `ETSI`: a triangle on the grid bins nearest to
+the band edges, `(j − left)/(centre − left)` rising and
+`(right − j)/(right − centre)` falling. It is not the ETSI ES 201 108
+filterbank (that one, with its `+1` offsets, is [`etsi_fbank`](@ref)).
+"""
+etsi(n::Integer) = triang(n)
+
+"""
+    point
+
+Filter style keeping only the bin nearest to each band centre (audioFlux
+`POINT`). Pass as `style=point`.
+"""
+point(n::Integer) = [i == (n + 1) ÷ 2 ? 1.0 : 0.0 for i in 1:n]
+
+"""
+    bohman(n)
+
+Bohman window of length `n` (symmetric), also an [`auditory_fbank`](@ref)
+filter style (`style=bohman`).
+"""
+function bohman(n::Integer)
+    n == 1 && return [1.0]
+    x = LinRange(-1.0, 1.0, n)
+    return [(1 - abs(v)) * cospi(abs(v)) + sinpi(abs(v)) / π for v in x]
+end
+
+"""
+    kaiser(n; β=5)
+
+Kaiser window of length `n` with shape parameter `β` (audioFlux's default
+`β=5`), symmetric; also a filter style (`style=kaiser`). `DSP.kaiser(n, α)`
+takes `α = β/π` instead.
+"""
+kaiser(n::Integer; β::Real=5) = DSP.kaiser(n, β / π)
+
+"""
+    gauss(n; α=2.5)
+
+Gaussian window `exp(-½ (α k / ((n-1)/2))²)` for `k = -(n-1)/2 … (n-1)/2`
+(MATLAB `gausswin`, audioFlux's default `α=2.5`); also a filter style
+(`style=gauss`).
+"""
+gauss(n::Integer; α::Real=2.5) = n == 1 ? [1.0] :
+    [exp(-0.5 * (α * (k - (n - 1) / 2) / ((n - 1) / 2))^2) for k in 0:n-1]
+
+# availables window functions from package DSP, plus povey and the audioFlux ones
 const AVAIL_WINDOWS = (
     rect, hanning, hamming, cosine, lanczos, triang,
-    bartlett, bartlett_hann, blackman, povey
+    bartlett, bartlett_hann, blackman, povey, bohman, kaiser, gauss, point, triangular, etsi
 )
 
 # a periodic window of length n is the symmetric window of length n+1 without

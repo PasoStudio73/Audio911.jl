@@ -202,6 +202,124 @@ const bark(hz::AbstractVector{<:AudioData}) =
     @. 26.81 * hz / (1960 + hz) - 0.53
 
 # ---------------------------------------------------------------------------- #
+#                         audioFlux frequency scales                           #
+# ---------------------------------------------------------------------------- #
+# The four scales below follow audioFlux (src/filterbank/auditory_filterBank.c).
+# For `linspace`, `octave` and `logspace` the frequency range gives the first
+# and last band *centre* (audioFlux's convention); the two outer edges are one
+# band step beyond. For `erb` the range gives the outer edges like `htk`.
+
+"""
+    linspace
+
+Linearly spaced band centres between the two ends of the frequency range
+(audioFlux `LINSPACE`). Pass as `scale=linspace` to [`auditory_fbank`](@ref)
+or [`MelSpec`](@ref). Same call forms as [`htk`](@ref).
+"""
+const linspace(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
+    lo, hi = T(get_low(hz)), T(get_hi(hz))
+    nbands ≥ 2 || throw(ArgumentError("linspace needs at least 2 bands"))
+    step = (hi - lo) / (nbands - 1)
+    return collect(LinRange(lo - step, hi + step, nbands + 2))
+end
+const linspace(hz::AbstractVector{<:AudioData}) = hz
+
+"""
+    erb
+
+Glasberg–Moore ERB-rate scale `21.3654 log10(1 + 0.004368 f)` used to place
+triangular (or window-shaped) filters (audioFlux `ERB`). Pass as `scale=erb`.
+[`ErbSpec`](@ref) uses gammatone filters instead; this scale gives the
+triangular variant. Same call forms as [`htk`](@ref).
+"""
+const erb(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
+    a = T(21.3654)
+    erbrange = @. a * log10(1 + T(hz) * T(0.004368))
+    erbvec = LinRange(get_low(erbrange), get_hi(erbrange), nbands + 2)
+    return @. (exp10(erbvec / a) - 1) / T(0.004368)
+end
+const erb(hz::AbstractVector{<:AudioData}) = @. 21.3654 * log10(1 + hz * 0.004368)
+
+"""
+    octave
+
+Musical scale with `bins_per_octave` bands per octave anchored on 440 Hz
+(audioFlux `OCTAVE`, the grid of a constant-Q transform): the low end of the
+frequency range is rounded to the nearest bin and `nbands` consecutive bins
+follow; the high end is ignored. Pass as `scale=octave` together with the
+`bins_per_octave` keyword of [`auditory_fbank`](@ref).
+"""
+const octave(::Type{T}, hz::FreqRange, nbands::Int; bins_per_octave::Int=12) where {T<:AudioData} = begin
+    get_low(hz) > 0 || throw(ArgumentError("the octave scale needs a positive low frequency"))
+    4 ≤ bins_per_octave ≤ 48 || throw(ArgumentError("bins_per_octave must be in 4:48, got $bins_per_octave"))
+    b = bins_per_octave
+    low = round(b * log2(get_low(hz) / 440)) - 1
+    return T[440 * 2.0^((low + k) / b) for k in 0:nbands+1]
+end
+const octave(hz::AbstractVector{<:AudioData}; bins_per_octave::Int=12) = @. bins_per_octave * log2(hz / 440)
+
+"""
+    logspace
+
+Geometrically spaced band centres between the two ends of the frequency
+range (audioFlux `LOG`). Pass as `scale=logspace`. Same call forms as
+[`htk`](@ref).
+"""
+const logspace(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
+    get_low(hz) > 0 || throw(ArgumentError("the logspace scale needs a positive low frequency"))
+    nbands ≥ 2 || throw(ArgumentError("logspace needs at least 2 bands"))
+    lo, hi = log2(get_low(hz) / 440), log2(get_hi(hz) / 440)
+    step = (hi - lo) / (nbands - 1)
+    return T[440 * 2.0^v for v in LinRange(lo - step, hi + step, nbands + 2)]
+end
+const logspace(hz::AbstractVector{<:AudioData}) = @. log2(hz / 440)
+
+const AVAIL_SCALES = (htk, slaney, bark, linspace, erb, octave, logspace)
+_band_edges(::Type{T}, scale, hz::FreqRange, nbands::Int, bins_per_octave::Int) where T =
+    scale === octave ? octave(T, hz, nbands; bins_per_octave) : scale(T, hz, nbands)
+_warp(scale, hz, bins_per_octave) = scale === octave ? octave(hz; bins_per_octave) : scale(hz)
+
+# ---------------------------------------------------------------------------- #
+#                          audioFlux filter styles                             #
+# ---------------------------------------------------------------------------- #
+const AVAIL_STYLES = (triangular, etsi, point, rect, hanning, hamming, blackman, bohman, kaiser, gauss)
+
+# symmetric window of odd length used to shape one half of a band
+_style_window(style, n::Int) = Vector{Float64}(style(n))
+
+# nearest grid index of every edge (audioFlux rounds `nfft * f / sr`)
+_nearest_bins(sfreq::AbstractVector, edges) = [argmin(abs.(sfreq .- e)) for e in edges]
+
+# fill row k of `fb` with a window-shaped band: the rising half of a window
+# of length 2(cur-left)+1 on bins left:cur, the falling half of a window of
+# length 2(right-cur)+1 on bins cur+1:right (audioFlux __auditory_windowFilterBank)
+function _window_band!(fb::AbstractMatrix{T}, k::Int, style, left::Int, cur::Int, right::Int) where T
+    if style === point
+        fb[k, cur] = one(T)
+    elseif style === etsi
+        cur > left && (@inbounds for j in left:cur; fb[k, j] = T(j - left) / T(cur - left); end)
+        right > cur && (@inbounds for j in cur+1:right; fb[k, j] = T(right - j) / T(right - cur); end)
+    elseif style === rect
+        fb[k, left:right] .= one(T)
+    else
+        if cur > left
+            w = _style_window(style, 2 * (cur - left) + 1)
+            @inbounds for (i, j) in enumerate(left:cur)
+                fb[k, j] = T(w[i])
+            end
+        end
+        if right > cur
+            m = right - cur
+            w = _style_window(style, 2m + 1)
+            @inbounds for (i, j) in enumerate(cur+1:right)
+                fb[k, j] = T(w[m + 1 + i])
+            end
+        end
+    end
+    return fb
+end
+
+# ---------------------------------------------------------------------------- #
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #
 """
@@ -331,6 +449,16 @@ or warped frequency domains for different spectral analysis applications.
   - `htk`: HTK-style mel scale (default) - standard in speech recognition
   - `slaney`: Slaney-style mel scale - better low-frequency resolution
   - `bark`: Bark scale - based on critical bands of hearing
+  - `linspace`, `erb`, `octave`, `logspace`: audioFlux's linear, ERB-rate,
+    musical (`bins_per_octave` bins per octave) and geometric scales; for
+    `linspace`, `octave` and `logspace` the `freqrange` bounds are the first
+    and last band *centre*
+- `style::Function=triangular`: shape of every band. `triangular` is the
+  Slaney/MATLAB triangle; `etsi` (bin-based triangle), `point`, `rect`,
+  `hanning`, `hamming`, `blackman`, `bohman`, `kaiser`, `gauss` are
+  audioFlux's styles, evaluated on the grid bins nearest to the band edges
+  (linear domain only)
+- `bins_per_octave::Int=12`: bands per octave of the `octave` scale
 - `norm::Function`: Normalization method:
   - `bandwidth`: normalize by half the filter bandwidth
   (energy preservation, default)
@@ -453,10 +581,12 @@ function auditory_fbank(
     sfreq::Union{AbstractVector{<:AudioData},Nothing}=nothing,
     nfft::Int=512,
     nbands::Int=26,
-    scale::Function=htk, # htk, slaney, bark
+    scale::Function=htk, # htk, slaney, bark, linspace, erb, octave, logspace
     norm::Function=bandwidth, # area, bandwidth, or none_norm
     domain::Symbol=:linear, # :linear, :warped
     freqrange::FreqRange=(0, sr÷2),
+    style::Function=triangular, # triangular, point, rect, hanning, hamming, blackman, bohman, kaiser, gauss
+    bins_per_octave::Int=12,
     T::Type=Float64
 )::FBank
     if isnothing(sfreq)
@@ -464,16 +594,38 @@ function auditory_fbank(
     end
 
     T = eltype(sfreq)
-    scale in (htk, slaney, bark) || throw(ArgumentError(
-        "scale must be `htk`, `slaney` or `bark`, got $scale"))
+    scale in AVAIL_SCALES || throw(ArgumentError(
+        "scale must be one of $(AVAIL_SCALES), got $scale"))
+    style in AVAIL_STYLES || throw(ArgumentError(
+        "style must be one of $(AVAIL_STYLES), got $style"))
     domain in (:linear, :warped) || throw(ArgumentError(
         "domain must be :linear or :warped, got $domain"))
     0 ≤ get_low(freqrange) < get_hi(freqrange) ≤ sr ÷ 2 || throw(ArgumentError(
         "freqrange must satisfy 0 ≤ low < high ≤ sr/2, got $freqrange with sr = $sr"))
-    band_edges = scale(T, freqrange, nbands)
+    band_edges = _band_edges(T, scale, freqrange, nbands, bins_per_octave)
+    # only the outermost edge may lie beyond the grid (a band centre or an
+    # inner edge outside it would give empty bands)
+    band_edges[end - 1] ≤ sfreq[end] * (1 + 4 * eps(T)) || throw(ArgumentError(
+        "the frequency grid (up to $(round(sfreq[end], digits=1)) Hz) does not reach the last band centre " *
+        "($(round(band_edges[end - 1], digits=1)) Hz); check freqrange"))
 
     filtfreq = collect(band_edges[2:(end - 1)])
     nbands = length(filtfreq)
+
+    # bandwidth
+    bw = @views band_edges[3:end] .- band_edges[1:(end - 2)]
+
+    if style !== triangular
+        # window-shaped bands on the nearest grid bins (audioFlux styles)
+        domain == :linear || throw(ArgumentError("window styles are designed in the linear domain only"))
+        bins = _nearest_bins(sfreq, band_edges)
+        filterbank = zeros(T, nbands, length(sfreq))
+        for k in 1:nbands
+            _window_band!(filterbank, k, style, bins[k], bins[k + 1], bins[k + 2])
+        end
+        norm === none_norm || normalize!(filterbank, norm, Vector{T}(bw))
+        return FBank(filterbank, filtfreq, Vector{T}(bw), sr, nbands, nameof(scale), norm, freqrange)
+    end
 
     p = [findfirst(sfreq .> edge) for edge in band_edges]
     isnothing(p[end]) ? p[end] = length(sfreq) : nothing
@@ -483,11 +635,8 @@ function auditory_fbank(
     # create triangular filters for each band
     filterbank = zeros(T, nbands, length(sfreq))
 
-    # bandwidth
-    bw = @views band_edges[3:end] .- band_edges[1:(end - 2)]
-
     # apply warping transformation if domain is warped
-    domain == :warped && (band_edges = scale(band_edges); sfreq = scale(sfreq))
+    domain == :warped && (band_edges = _warp(scale, band_edges, bins_per_octave); sfreq = _warp(scale, sfreq, bins_per_octave))
 
     for k in 1:nbands
         # rising side of triangle

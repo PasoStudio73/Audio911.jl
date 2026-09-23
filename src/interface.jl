@@ -26,6 +26,26 @@ Return the spectrum kind of a front end: [`power`](@ref) (`|X|²`) or
 function get_spectrum end
 
 """
+    get_complex(s::AbstractSpectrogram) -> Matrix{Complex}
+
+The complex time-frequency coefficients of a front end, `bins × frames`,
+from which `get_spec` was derived (`|X|²` or `|X|`). Front ends that can
+provide it (`Stft`, `Cqt`, ...) either return the matrix they kept
+(`keep_complex=true` at construction) or recompute it on request from their
+`Frames`, so the memory footprint of a stage that never asks for it is
+unchanged. See the [design page](@ref design_complex).
+"""
+function get_complex end
+
+"""
+    get_phase(s::AbstractSpectrogram) -> Matrix
+
+Phase `atan(imag, real)` of [`get_complex`](@ref), `bins × frames`
+(audioFlux `get_phase`).
+"""
+get_phase(s::AbstractSpectrogram) = angle.(get_complex(s))
+
+"""
     get_window(s::AbstractSpectrogram) -> Union{AbstractVector, Nothing}
 
 Return the time-domain analysis window of a front end, or `nothing` when the

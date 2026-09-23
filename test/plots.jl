@@ -68,6 +68,27 @@ recipe(x; kw...) = RecipesBase.apply_recipe(Dict{Symbol,Any}(kw...), x)
     @test length(rd) == 2
 end
 
+@testset "recipes: audioFlux ports" begin
+    audio  = Audio911.load(wav_file; format=Float64)
+    frames = Frames(audio; winsize=512, winstep=256)
+    n = length(frames)
+    for s in (Cqt(frames; nbins=60), Pwt(frames; nbands=40, scale=octave),
+              Nsgt(frames; nbands=40, scale=octave), St(frames; freqrange=(0, 300)),
+              Fst(frames; freqrange=(0, 2000)), MelSpec(Stft(frames); nbands=30, scale=erb, style=hanning))
+        rd = recipe(s)
+        @test length(rd) == 1
+        t, f, z = rd[1].args
+        @test length(t) == n && size(z, 2) == n && size(z, 1) == length(f)
+        @test maximum(z) ≈ 0
+        @test rd[1].plotattributes[:seriestype] == :heatmap
+    end
+    @test recipe(Cqt(frames; nbins=60))[1].plotattributes[:yscale] == :log10
+    @test !haskey(recipe(Cqt(frames; nbins=60); freq_scale=:linear)[1].plotattributes, :yscale)
+    @test size(recipe(Chroma(Cqt(frames; nbins=60)))[1].args[3]) == (12, n)
+    fb = cqt_chroma_fbank(Cqt(frames; nbins=60))
+    @test length(recipe(fb)) == 12
+end
+
 # one end-to-end check with a real backend (GR, headless)
 ENV["GKSwstype"] = "100"
 using Plots
@@ -82,4 +103,6 @@ using Plots
     @test plot(audio) isa Plots.Plot
     @test plot(get_fbank(MelSpec(stft; nbands=20))) isa Plots.Plot
     @test plot(Hpss(stft)) isa Plots.Plot
+    @test plot(Cqt(audio; winsize=512, winstep=256, nbins=60)) isa Plots.Plot
+    @test plot(Nsgt(audio; winsize=512, winstep=256, nbands=40, scale=octave)) isa Plots.Plot
 end

@@ -176,7 +176,7 @@ include("audio/libsndfile.jl")
 include("audio/mpg123.jl")
 include("audio/audiofile.jl")
 
-export get_spec, get_spectrum, get_window, get_winnorm
+export get_spec, get_spectrum, get_window, get_winnorm, get_complex, get_phase
 export get_nbins, get_nframes, get_times, get_offset, get_duration
 include("interface.jl")
 
@@ -193,10 +193,21 @@ export morlet, morse, bump
 include("wavelet/cwt.jl")
 
 export FBank
-export htk, slaney, bark
+export htk, slaney, bark, linspace, erb, octave, logspace
 export area, bandwidth, none_norm
+export triangular, etsi, point, bohman, kaiser, gauss
 export auditory_fbank, gammatone_fbank
 include("fft/fbank.jl")
+
+export Cqt
+include("fft/cqt.jl")
+
+# whole-signal transforms pooled on the Frames grid
+export pwt, Pwt, st, fst, St, Fst, nsgt, nsgt_matrix, Nsgt, get_cells, get_lengths
+include("transforms/whole.jl")
+include("transforms/pwt.jl")
+include("transforms/st.jl")
+include("transforms/nsgt.jl")
 
 export LinSpec
 include("fft/lin_spec.jl")
@@ -238,6 +249,9 @@ include("features/timedomain.jl")
 
 export Chroma, ChromaFBank, chroma_fbank, hz_to_octs, Tonnetz, SpectralContrast, PolyFeatures
 include("features/chroma.jl")
+
+export cqt_chroma_fbank
+include("features/cqt_chroma.jl")
 
 export OnsetStrength, peak_pick, onset_detect, Tempogram, tempo, beat_track
 include("features/onset.jl")
