@@ -74,12 +74,16 @@ g   = SpectralGate(stft; threshold=-50, freqrange=(40, 120))   # gate the hum ba
 - [`HarmonicRatio`](@ref) with `method=:audioflux` is audioFlux's harmonic
   ratio (zero-padded auto-correlation from its first zero crossing,
   quadratic interpolation).
+- [`harmonic_count`](@ref) counts the harmonic peaks of every frame of an
+  `Stft` with audioFlux's peak filters.
 
 ```julia
 d  = Deconv(Stft(audio; winsize=512, winstep=256, spectrum=magnitude))
 cg = Cepstrogram(Frames(audio; winsize=512, winstep=256, type=rect); ncep=8)
 hr = HarmonicRatio(Frames(audio; winsize=4096, winstep=1024, type=hamming); method=:audioflux, fmin=32.703)
+nh = harmonic_count(Stft(Frames(audio; winsize=4096, winstep=1024, type=hamming)))
 plot(d); plot(cg)
 ```
 
-All four agree with audioFlux (`test/af_features.jl`).
+The first four agree with audioFlux (`test/af_features.jl`), and the
+harmonic count gives audioFlux's counts frame by frame (`test/harmonic_af.jl`).

@@ -290,6 +290,9 @@ export DerivedSpec, Hpss, get_harmonic, get_percussive, get_masks, get_name, get
 export noisegate, SpectralGate, pcen
 include("features/hpss.jl")
 
+export harmonic_count
+include("features/harmonic_count.jl")
+
 export xxcc_standard, Deconv, get_timbre, get_pitch, Cepstrogram, get_quefrency, get_envelope, get_details, Ezr
 include("features/af_features.jl")
 

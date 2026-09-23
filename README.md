@@ -89,7 +89,8 @@ load ─▶ AudioFile ─▶ Frames ─┬─▶ Stft ──┐
 
 ### Descriptors and features
 - eleven MATLAB spectral descriptors plus `SpectralBandwidth`, `Rms`, `Energy`,
-  `Zcr`, `Pitch` (NCF, YIN, cepstral, PEF, HPS, LHS, spectral peaks), `HarmonicRatio`
+  `Zcr`, `Pitch` (NCF, YIN, cepstral, PEF, HPS, LHS, spectral peaks), `HarmonicRatio`,
+  `harmonic_count`
 - audioFlux's descriptors: energy, RMS, high-frequency content, spectral
   difference, modified Kullback-Leibler, phase and complex-domain
   deviations, broadband, novelty, energy-entropy, max/peak/mean/variance

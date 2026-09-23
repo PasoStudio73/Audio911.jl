@@ -42,6 +42,7 @@ test_suites = [
     ("HPSS signals", ["hpss_af.jl"]),
     ("NMF", ["nmf_af.jl"]),
     ("HMM and Viterbi", ["hmm_af.jl"]),
+    ("Harmonic count", ["harmonic_af.jl"]),
 ]
 
 @testset "Audio911.jl" begin
