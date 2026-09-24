@@ -28,7 +28,7 @@ bytes; you can also construct one directly to skip the detection.
 """
 struct File{F<:AbstractDataFormat}
     filename::String
-    File{F}(file::AbstractString) where {F<:AbstractDataFormat} = new{F}(String(file))
+    File{F}(file::String) where {F<:AbstractDataFormat} = new{F}(String(file))
 end
 
 """
@@ -103,7 +103,7 @@ Format of an audio file from its extension, verified against the file's
 first bytes. Throws an `ArgumentError` for an unsupported extension or when
 the content does not match the extension.
 """
-function detect_format(path::AbstractString)
+function detect_format(path::String)
     isfile(path) || throw(ArgumentError("File '$path' does not exist."))
     _, ext = splitext(path)
     key = lowercase(ext)

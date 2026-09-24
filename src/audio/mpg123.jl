@@ -3,10 +3,10 @@
 # ---------------------------------------------------------------------------- #
 # Minimal bindings to libmpg123 for decoding MP3 files to 16-bit PCM.
 
-const MPG123_OK         = Cint(0)
-const MPG123_DONE       = Cint(-12)
+const MPG123_OK = Cint(0)
+const MPG123_DONE = Cint(-12)
 const MPG123_NEW_FORMAT = Cint(-11)
-const MPG123_NEED_MORE  = Cint(-10)
+const MPG123_NEED_MORE = Cint(-10)
 const MPG123_ENC_SIGNED_16 = Cint(0x40 | 0x80 | 0x10)
 
 const MPG123_HANDLE = Ptr{Cvoid}
@@ -25,7 +25,7 @@ function _mpg123_new()
 end
 
 _mpg123_delete(mh) = ccall((:mpg123_delete, libmpg123), Cvoid, (MPG123_HANDLE,), mh)
-_mpg123_close(mh)  = ccall((:mpg123_close, libmpg123), Cint, (MPG123_HANDLE,), mh)
+_mpg123_close(mh) = ccall((:mpg123_close, libmpg123), Cint, (MPG123_HANDLE,), mh)
 
 function _mpg123_open(mh, path::String)
     err = ccall((:mpg123_open, libmpg123), Cint, (MPG123_HANDLE, Cstring), mh, path)
@@ -48,7 +48,7 @@ function _mpg123_force_s16(mh)
     return nothing
 end
 
-_mpg123_length(mh)   = Int(ccall((:mpg123_length, libmpg123), Int64, (MPG123_HANDLE,), mh))
+_mpg123_length(mh) = Int(ccall((:mpg123_length, libmpg123), Int64, (MPG123_HANDLE,), mh))
 _mpg123_outblock(mh) = Int(ccall((:mpg123_outblock, libmpg123), Csize_t, (MPG123_HANDLE,), mh))
 
 function _mpg123_read!(mh, buf::Vector{Int16})
@@ -70,10 +70,10 @@ function _read_mp3(::Type{T}, path::String) where {T<:AudioData}
             rate, nch, enc = _mpg123_getformat(mh)
             enc == MPG123_ENC_SIGNED_16 || throw(ArgumentError(
                 "unsupported mpg123 encoding $enc in '$path' (only signed 16-bit is supported)"))
-            est   = max(_mpg123_length(mh), 0)
+            est = max(_mpg123_length(mh), 0)
             block = max(_mpg123_outblock(mh) ÷ sizeof(Int16), nch * 1152)
-            buf   = Vector{Int16}(undef, block)
-            acc   = Vector{Int16}(undef, 0)
+            buf = Vector{Int16}(undef, block)
+            acc = Vector{Int16}(undef, 0)
             sizehint!(acc, est * nch)
             while true
                 n, err = _mpg123_read!(mh, buf)

@@ -1,9 +1,9 @@
 module Audio911
 using  Reexport
 
-# ---------------------------------------------------------------------------- #
-#                           audio related packages                             #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                 audio related packages                                   #
+# ---------------------------------------------------------------------------------------- #
 using  FFTW
 import DSP
 using  LinearAlgebra
@@ -15,9 +15,9 @@ using  RecipesBase
 using  libsndfile_jll: libsndfile
 using  mpg123_jll: libmpg123
 
-# ---------------------------------------------------------------------------- #
-#                               abstract types                                 #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                     abstract types                                       #
+# ---------------------------------------------------------------------------------------- #
 """
     AbstractAudioFile
 
@@ -84,9 +84,9 @@ One value per frame descriptors (`SpectralCentroid`, `Rms`, ...).
 """
 abstract type AbstractSpectral <: AbstractAudioSpectrum end
 
-# ---------------------------------------------------------------------------- #
-#                                   types                                      #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                         types                                            #
+# ---------------------------------------------------------------------------------------- #
 # type alias for `Union{T, Nothing}`
 const Maybe{T} = Union{T, Nothing}
 
@@ -137,9 +137,9 @@ get_low(r::ScaleRange) = r[1]
 get_hi(r::ScaleRange)  = r[2]
 export ScaleRange
 
-# ---------------------------------------------------------------------------- #
-#                           spectrum normalizations                            #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                 spectrum normalizations                                  #
+# ---------------------------------------------------------------------------------------- #
 """
     winpower(f, w)
 
@@ -156,9 +156,9 @@ winmagnitude(f, w) = f / sum(w)
 
 export winpower, winmagnitude
 
-# ---------------------------------------------------------------------------- #
-#                                  modules                                     #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                        modules                                           #
+# ---------------------------------------------------------------------------------------- #
 # reexport DSP's window functions
 @reexport using DSP: rect, hanning, hamming, cosine, lanczos, triang
 @reexport using DSP: bartlett, bartlett_hann, blackman
@@ -167,7 +167,7 @@ export winpower, winmagnitude
 function get_data end
 function get_sr end
 
-export @format_str, File, AudioFormat, AudioFile, load
+export @format_str, File, AudioFile, load
 export filename, file_extension, formatname, detect_format
 export get_origin_sr, get_nchannels, is_norm, get_path
 export to_mono, normalize_peak
@@ -306,9 +306,9 @@ include("signal/stretch.jl")
 export viterbi, Hmm, hmm_predict, hmm_decode, hmm_train, hmm_generate
 include("classic/hmm.jl")
 
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
 #                                  methods                                     #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
 # general
 export get_data, get_setup
 
@@ -328,9 +328,9 @@ export get_freqrange
 export get_ncoeffs, raw_energy, spectrum_energy
 export get_fbank, get_frames, get_parent, get_frontend, get_signal, frame!, get_scales
 
-# ---------------------------------------------------------------------------- #
-#                                   plots                                      #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                         plots                                            #
+# ---------------------------------------------------------------------------------------- #
 # Plots recipes: `using Plots; plot(x)` works for every stage, at no cost
 # when Plots is not loaded.
 include("plots.jl")

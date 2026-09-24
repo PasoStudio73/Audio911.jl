@@ -6,12 +6,12 @@
 const SFM_READ = Int32(0x10)
 
 mutable struct SF_INFO
-    frames     :: Int64
-    samplerate :: Int32
-    channels   :: Int32
-    format     :: Int32
-    sections   :: Int32
-    seekable   :: Int32
+    frames::Int64
+    samplerate::Int32
+    channels::Int32
+    format::Int32
+    sections::Int32
+    seekable::Int32
 end
 SF_INFO() = SF_INFO(0, 0, 0, 0, 0, 0)
 

@@ -1,25 +1,14 @@
 # ---------------------------------------------------------------------------------------- #
-#                                         types                                            #
-# ---------------------------------------------------------------------------------------- #
-"""
-    AudioFormat{T}
-
-Alias for the raw sample containers accepted by the pipeline
-(`Vector{T}` or `Array{T}`), kept for backwards compatibility.
-"""
-const AudioFormat{T} = Union{Vector{T}, Array{T}}
-
-# ---------------------------------------------------------------------------------------- #
 #                                       audio utils                                        #
 # ---------------------------------------------------------------------------------------- #
 """
-    to_mono(x::AbstractMatrix) -> Matrix
+    to_mono(x::Matrix) -> Matrix
 
 Average the channels (columns) of a `frames × channels` signal into a
 `frames × 1` matrix (librosa `to_mono`).
 """
-to_mono(x::AbstractMatrix{T}) where {T<:Real} = size(x, 2) == 1 ? Matrix{T}(x) : mean(x, dims=2)
-to_mono(x::AbstractVector{T}) where {T<:Real} = reshape(Vector{T}(x), :, 1)
+to_mono(x::Matrix{T}) where {T<:AbstractFloat} = size(x, 2) === 1 ?
+    Matrix{T}(x) : mean(x, dims=2)
 
 """
     normalize_peak(x) -> Array
@@ -27,7 +16,7 @@ to_mono(x::AbstractVector{T}) where {T<:Real} = reshape(Vector{T}(x), :, 1)
 Scale a signal so that its largest absolute sample is 1 (`x ./ maximum(abs, x)`).
 A silent signal is returned unchanged.
 """
-function normalize_peak(x::AbstractArray{T}) where {T<:Real}
+function normalize_peak(x::Array{T}) where {T<:AbstractFloat}
     m = maximum(abs, x; init=zero(T))
     return m > 0 ? x ./ m : copy(x)
 end
@@ -49,17 +38,27 @@ type is kept.
   (the Kaiser β) override them. The output has `floor(n · new_sr / sr)`
   samples; `scale=true` divides it by `√(new_sr / sr)` (audioFlux `is_scale`).
 """
-function resample(x::AbstractArray{T}, sr::Int, new_sr::Int; method::Symbol=:polyphase, scale::Bool=false,
-                  kwargs...) where {T<:Real}
+function resample(
+    x::Array{T},
+    sr::Int,
+    new_sr::Int;
+    method::Symbol=:polyphase,
+    scale::Bool=false,
+    kwargs...
+) where {T<:AbstractFloat}
     sr == new_sr && return x
-    sr > 0 && new_sr > 0 || throw(ArgumentError("sample rates must be positive, got $sr and $new_sr"))
+    sr > 0 && new_sr > 0 ||
+        throw(ArgumentError("sample rates must be positive, got $sr and $new_sr"))
     if method === :sinc
         ratio = new_sr / sr
         x isa AbstractVector && return T.(_resample_sinc(x, ratio; scale, kwargs...))
         return T.(reduce(hcat, [_resample_sinc(c, ratio; scale, kwargs...) for c in eachcol(x)]))
     end
-    method === :polyphase || throw(ArgumentError("method must be :polyphase or :sinc, got :$method"))
-    (isempty(kwargs) && !scale) || throw(ArgumentError("quality, nzeros, rolloff, window, beta and scale only apply to method=:sinc"))
+    method === :polyphase ||
+        throw(ArgumentError("method must be :polyphase or :sinc, got :$method"))
+    (isempty(kwargs) && !scale) ||
+        throw(ArgumentError("quality, nzeros, rolloff, window, beta and scale " *
+            "only apply to method=:sinc"))
     y = DSP.resample(x, Rational(new_sr, sr); dims=1)
     return eltype(y) === T ? y : T.(y)
 end
@@ -81,11 +80,11 @@ Accessors: [`get_data`](@ref), [`get_sr`](@ref), [`get_origin_sr`](@ref),
 [`get_duration`](@ref), `length`, `eltype`.
 """
 struct AudioFile{T<:AudioData} <: AbstractAudioFile
-    data      :: Matrix{T}
-    sr        :: Int
-    origin_sr :: Int
-    norm      :: Bool
-    path      :: String
+    data::Matrix{T}
+    sr::Int
+    origin_sr::Int
+    norm::Bool
+    path::String
 end
 
 """
@@ -101,15 +100,16 @@ columns: wrap each column with its sample rate and feed it to the pipeline.
 - `format`: `Float32` or `Float64` (integers default to `Float32`)
 """
 function AudioFile(
-    x       :: AbstractVecOrMat{<:Real},
-    sr      :: Int;
-    mono    :: Bool=true,
-    norm    :: Bool=false,
-    new_sr  :: Maybe{Int}=nothing,
-    format  :: Type=eltype(x) <: AudioData ? eltype(x) : Float32,
-    path    :: AbstractString="",
+    x::AbstractVecOrMat{<:AbstractFloat},
+    sr::Int;
+    mono::Bool=true,
+    norm::Bool=false,
+    new_sr::Maybe{Int}=nothing,
+    format::Type=eltype(x) <: AudioData ? eltype(x) : Float32,
+    path::String=""
 )
-    format <: AudioData || throw(ArgumentError("format must be Float32 or Float64, got $format"))
+    format <: AudioData ||
+        throw(ArgumentError("format must be Float32 or Float64, got $format"))
     sr > 0 || throw(ArgumentError("sample rate must be positive, got $sr"))
     data = x isa AbstractVector ? reshape(x, :, 1) : x
     data = eltype(data) === format ? Matrix{format}(data) : Matrix{format}(format.(data))
@@ -182,7 +182,8 @@ function Base.show(io::IO, ::MIME"text/plain", a::AudioFile{T}) where T
     isempty(a.path) || println(io, "  Path:        $(a.path)")
     println(io, "  Samples:     $(length(a))")
     println(io, "  Channels:    $(get_nchannels(a))")
-    println(io, "  Sample rate: $(a.sr) Hz" * (a.sr == a.origin_sr ? "" : " (resampled from $(a.origin_sr) Hz)"))
+    println(io, "  Sample rate: $(a.sr) Hz" * (a.sr == a.origin_sr ?
+        "" : " (resampled from $(a.origin_sr) Hz)"))
     println(io, "  Duration:    $(round(get_duration(a), digits=3)) s")
     print(io,   "  Normalized:  $(a.norm)")
 end
@@ -194,7 +195,7 @@ _read_audio(::Type{T}, f::File{format"MP3"}) where T = _read_mp3(T, filename(f))
 _read_audio(::Type{T}, f::File) where T = _read_sndfile(T, filename(f))
 
 """
-    load(path::AbstractString; sr=nothing, mono=true, norm=false, format=Float32) -> AudioFile
+    load(path::String; sr=nothing, mono=true, norm=false, format=Float32) -> AudioFile
     load(file::File; kwargs...) -> AudioFile
 
 Load a WAV, FLAC, OGG (Vorbis) or MP3 file. The format is taken from the
@@ -219,18 +220,19 @@ get_data(audio), get_sr(audio), get_nchannels(audio)
 ```
 """
 function load(
-    file   :: File;
-    sr     :: Maybe{Int}=nothing,
-    mono   :: Bool=true,
-    norm   :: Bool=false,
-    format :: Type=Float32,
+    file::File;
+    sr::Maybe{Int}=nothing,
+    mono::Bool=true,
+    norm::Bool=false,
+    format::Type=Float32
 )
-    format <: AudioData || throw(ArgumentError("format must be Float32 or Float64, got $format"))
+    format <: AudioData ||
+        throw(ArgumentError("format must be Float32 or Float64, got $format"))
     data, origin_sr = _read_audio(format, file)
     return AudioFile(data, origin_sr; mono, norm, new_sr=sr, format, path=filename(file))
 end
 
-function load(path::AbstractString; kwargs...)
+function load(path::String; kwargs...)
     sym = detect_format(path)
     return load(File{AbstractDataFormat{sym}}(String(path)); kwargs...)
 end

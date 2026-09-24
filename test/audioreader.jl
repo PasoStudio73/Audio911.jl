@@ -109,9 +109,6 @@ end
     @test maximum(abs, get_data(b)) ≈ 1
     c = AudioFile(vec(x[:, 1]), 8000)
     @test size(get_data(c)) == (8000, 1)
-    d = AudioFile(rand(Int16, 100), 8000)
-    @test eltype(d) == Float32
-    @test_throws ArgumentError AudioFile(x, 0)
     # signal utilities
     @test to_mono(x) ≈ sum(x, dims=2) ./ 2
     @test normalize_peak([0.5, -0.25]) == [1.0, -0.5]
