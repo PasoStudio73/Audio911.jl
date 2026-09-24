@@ -1,6 +1,6 @@
-# ---------------------------------------------------------------------------- #
-#                                   types                                      #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                         types                                            #
+# ---------------------------------------------------------------------------------------- #
 """
     AudioFormat{T}
 
@@ -9,9 +9,9 @@ Alias for the raw sample containers accepted by the pipeline
 """
 const AudioFormat{T} = Union{Vector{T}, Array{T}}
 
-# ---------------------------------------------------------------------------- #
-#                                 audio utils                                  #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                       audio utils                                        #
+# ---------------------------------------------------------------------------------------- #
 """
     to_mono(x::AbstractMatrix) -> Matrix
 
@@ -64,9 +64,9 @@ function resample(x::AbstractArray{T}, sr::Int, new_sr::Int; method::Symbol=:pol
     return eltype(y) === T ? y : T.(y)
 end
 
-# ---------------------------------------------------------------------------- #
-#                              AudioFile struct                                #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                    AudioFile struct                                      #
+# ---------------------------------------------------------------------------------------- #
 """
     AudioFile{T} <: AbstractAudioFile
 
@@ -82,8 +82,8 @@ Accessors: [`get_data`](@ref), [`get_sr`](@ref), [`get_origin_sr`](@ref),
 """
 struct AudioFile{T<:AudioData} <: AbstractAudioFile
     data      :: Matrix{T}
-    sr        :: Int64
-    origin_sr :: Int64
+    sr        :: Int
+    origin_sr :: Int
     norm      :: Bool
     path      :: String
 end
@@ -102,10 +102,10 @@ columns: wrap each column with its sample rate and feed it to the pipeline.
 """
 function AudioFile(
     x       :: AbstractVecOrMat{<:Real},
-    sr      :: Int64;
+    sr      :: Int;
     mono    :: Bool=true,
     norm    :: Bool=false,
-    new_sr  :: Maybe{Int64}=nothing,
+    new_sr  :: Maybe{Int}=nothing,
     format  :: Type=eltype(x) <: AudioData ? eltype(x) : Float32,
     path    :: AbstractString="",
 )
@@ -120,9 +120,9 @@ function AudioFile(
     return AudioFile{format}(data, target, sr, norm, String(path))
 end
 
-#------------------------------------------------------------------------------#
-#                                    methods                                   #
-#------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------- #
+#                                          methods                                         #
+# ---------------------------------------------------------------------------------------- #
 Base.eltype(::AudioFile{T}) where T = T
 Base.length(f::AudioFile) = size(f.data, 1)
 
@@ -187,9 +187,9 @@ function Base.show(io::IO, ::MIME"text/plain", a::AudioFile{T}) where T
     print(io,   "  Normalized:  $(a.norm)")
 end
 
-# ---------------------------------------------------------------------------- #
-#                                     load                                     #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                           load                                           #
+# ---------------------------------------------------------------------------------------- #
 _read_audio(::Type{T}, f::File{format"MP3"}) where T = _read_mp3(T, filename(f))
 _read_audio(::Type{T}, f::File) where T = _read_sndfile(T, filename(f))
 
@@ -220,7 +220,7 @@ get_data(audio), get_sr(audio), get_nchannels(audio)
 """
 function load(
     file   :: File;
-    sr     :: Maybe{Int64}=nothing,
+    sr     :: Maybe{Int}=nothing,
     mono   :: Bool=true,
     norm   :: Bool=false,
     format :: Type=Float32,

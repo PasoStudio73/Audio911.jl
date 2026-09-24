@@ -3,18 +3,18 @@ using Audio911
 
 using MAT
 
-test_files_dir()    = joinpath(dirname(@__FILE__), "test_files")
+test_files_dir() = joinpath(dirname(@__FILE__), "test_files")
 test_file(filename) = joinpath(test_files_dir(), filename)
 invalid_file(filename) = joinpath(test_files_dir(), "invalid", filename)
 
-wav_file  = test_file("test.wav")
-mp3_file  = test_file("test.mp3")
+wav_file = test_file("test.wav")
+mp3_file = test_file("test.mp3")
 flac_file = test_file("test.flac")
-ogg_file  = test_file("test.ogg")
+ogg_file = test_file("test.ogg")
 
-# ---------------------------------------------------------------------------- #
-#                                audio reader                                  #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                      audio reader                                        #
+# ---------------------------------------------------------------------------------------- #
 @testset "audioreader" begin
     @test_nowarn Audio911.File{format"WAV"}(wav_file)
     @test_nowarn Audio911.File{format"MP3"}(mp3_file)
@@ -78,20 +78,25 @@ ogg_file  = test_file("test.ogg")
     @test_throws ArgumentError Audio911.load(wav_file; format=Int16)
 end
 
-# ---------------------------------------------------------------------------- #
-#                                 invalid files                                #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                     invalid files                                        #
+# ---------------------------------------------------------------------------------------- #
 @testset "invalid files" begin
-    @test_throws ArgumentError Audio911.load(invalid_file("text.txt"))          # unsupported extension
-    @test_throws ArgumentError Audio911.load(invalid_file("test.oga"))          # unsupported extension
-    @test_throws ArgumentError Audio911.load(invalid_file("text.wav"))          # not a RIFF/WAVE file
-    @test_throws ArgumentError Audio911.load(invalid_file("test_is_a_wav.mp3")) # content does not match extension
-    @test_throws ArgumentError Audio911.load(test_file("missing.wav"))          # does not exist
+    # unsupported extension
+    @test_throws ArgumentError Audio911.load(invalid_file("text.txt"))
+    # unsupported extension
+    @test_throws ArgumentError Audio911.load(invalid_file("test.oga"))
+    # not a RIFF/WAVE file
+    @test_throws ArgumentError Audio911.load(invalid_file("text.wav"))
+    # content does not match extension
+    @test_throws ArgumentError Audio911.load(invalid_file("test_is_a_wav.mp3"))
+    # does not exist
+    @test_throws ArgumentError Audio911.load(test_file("missing.wav"))
 end
 
-# ---------------------------------------------------------------------------- #
-#                              in-memory audio                                 #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                    in-memory audio                                       #
+# ---------------------------------------------------------------------------------------- #
 @testset "in-memory AudioFile" begin
     x = rand(Float32, 8000, 2) .- 0.5f0
     a = AudioFile(x, 8000)
@@ -118,10 +123,10 @@ end
     @test Frames(get_data(a), 8000) isa Frames
 end
 
-# ---------------------------------------------------------------------------- #
-#                            test against matlab                               #
-# ---------------------------------------------------------------------------- #
-matlab_files_dir()    = joinpath(dirname(@__FILE__), "matlab_files/audioread")
+# ---------------------------------------------------------------------------------------- #
+#                                  test against matlab                                     #
+# ---------------------------------------------------------------------------------------- #
+matlab_files_dir() = joinpath(dirname(@__FILE__), "matlab_files/audioread")
 matlab_file(filename) = joinpath(matlab_files_dir(), filename)
 
 @testset "against matlab" begin
@@ -145,9 +150,9 @@ matlab_file(filename) = joinpath(matlab_files_dir(), filename)
     @test isapprox(mp3_data_mat, mp3_data_a911)
 end
 
-# ---------------------------------------------------------------------------- #
-#                                  resampling                                  #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                        resampling                                        #
+# ---------------------------------------------------------------------------------------- #
 @testset "resampling" begin
     orig_file = Audio911.load(wav_file)
     res_file  = Audio911.load(wav_file, sr=8000)
