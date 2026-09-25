@@ -2,22 +2,27 @@
 #                                     file format types                                    #
 # ---------------------------------------------------------------------------------------- #
 """
-    AbstractDataFormat{sym}
+    AbstractDataFormat
 
-Type-level tag of an audio container format (`:WAV`, `:FLAC`, `:OGG`, `:MP3`).
-Build one with the [`@format_str`](@ref) string macro: `format"WAV"`.
+Abstract supertype of the audio container format tags. Each supported format
+is a concrete singleton subtype: [`Wav`](@ref), [`Flac`](@ref), [`Ogg`](@ref)
+(Vorbis) and [`Mp3`](@ref). [`detect_format`](@ref) returns one of these from
+a file's extension and magic bytes; [`File{F}`](@ref File) carries it as a
+type parameter.
 """
-abstract type AbstractDataFormat{sym} end
+abstract type AbstractDataFormat end
 
-"""
-    @format_str(s)
+"""WAV container format tag (see [`AbstractDataFormat`](@ref))."""
+struct Wav <: AbstractDataFormat end
 
-`format"WAV"` is `AbstractDataFormat{:WAV}`; likewise `format"MP3"`,
-`format"FLAC"` and `format"OGG"`.
-"""
-macro format_str(s)
-    :(AbstractDataFormat{$(Expr(:quote, Symbol(s)))})
-end
+"""FLAC container format tag (see [`AbstractDataFormat`](@ref))."""
+struct Flac <: AbstractDataFormat end
+
+"""OGG (Vorbis) container format tag (see [`AbstractDataFormat`](@ref))."""
+struct Ogg <: AbstractDataFormat end
+
+"""MP3 container format tag (see [`AbstractDataFormat`](@ref))."""
+struct Mp3 <: AbstractDataFormat end
 
 """
     File{F<:AbstractDataFormat}
@@ -28,7 +33,8 @@ bytes; you can also construct one directly to skip the detection.
 """
 struct File{F<:AbstractDataFormat}
     filename::String
-    File{F}(file::String) where {F<:AbstractDataFormat} = new{F}(String(file))
+
+    File{F}(file::String) where {F<:AbstractDataFormat} = new{F}(file)
 end
 
 """
@@ -44,30 +50,38 @@ file_extension(f::File) = splitext(f.filename)[2]
 """
     formatname(f::File) -> Symbol
 
-The format tag, `:WAV`, `:FLAC`, `:OGG` or `:MP3`.
+The format tag, `Wav`, `Flac`, `Ogg` or `Mp3`.
 """
-formatname(::File{AbstractDataFormat{S}}) where S = S
+formatname(::File{S}) where S = S
 
 # ---------------------------------------------------------------------------------------- #
 #                                       magic bytes                                        #
 # ---------------------------------------------------------------------------------------- #
 function evalext(e::UInt8)
-    e == 0x01 ? :WAV :
-    e == 0x02 ? :FLAC :
-    e == 0x03 ? :OGG : :MP3
+    e === 0x01 ? Wav :
+    e === 0x02 ? Flac :
+    e === 0x03 ? Ogg : Mp3
 end
 
-const Formats = Dict{String,UInt8}(
-    ".wav" => 0x01,
-    ".flac" => 0x02,
-    ".ogg" => 0x03,
-    ".mp3" => 0x04,
-)
+function evalext(e::String)
+    e === ".wav" ? Wav :
+    e === ".flac" ? Flac :
+    e === ".ogg" ? Ogg :
+    e === ".mp3" ? Mp3 :
+    throw(ArgumentError("Unsupported file format '$e'. Supported formats: " *
+        ".wav, .flac, .ogg, .mp3"))
+end
+
+function formats(e::Type{<:AbstractDataFormat})
+    e === Wav ? 0x01 :
+    e === Flac ? 0x02 :
+    e === Ogg ? 0x03 : 0x04
+end
 
 function magic(e::UInt8)
-    e == 0x01 ? _is_wav :
-    e == 0x02 ? _is_flac :
-    e == 0x03 ? _is_ogg : _is_mp3
+    e === 0x01 ? _is_wav :
+    e === 0x02 ? _is_flac :
+    e === 0x03 ? _is_ogg : _is_mp3
 end
 
 _starts_with(buf::Vector{UInt8}, magic) =
@@ -75,14 +89,14 @@ _starts_with(buf::Vector{UInt8}, magic) =
 
 function magic(buf::Vector{UInt8}, ext::UInt8)
     # WAV: "RIFF" .... "WAVE" (also RF64 / "RIFX" big endian are accepted by libsndfile)
-    return if ext === 0x01
+    return if evalext(ext) === Wav
         (_starts_with(buf, b"RIFF") ||
             _starts_with(buf, b"RF64") ||
             _starts_with(buf, b"RIFX")
         ) && length(buf) ≥ 12 && buf[9:12] == b"WAVE"
-    elseif ext === 0x02
+    elseif evalext(ext) === Flac
         _starts_with(buf, b"fLaC")
-    elseif ext === 0x03
+    elseif evalext(ext) === Ogg
         _starts_with(buf, b"OggS")
     else
     # MP3: ID3v2 tag or an MPEG audio frame sync (11 set bits) at the start
@@ -105,12 +119,9 @@ the content does not match the extension.
 """
 function detect_format(path::String)
     isfile(path) || throw(ArgumentError("File '$path' does not exist."))
-    _, ext = splitext(path)
-    key = lowercase(ext)
-    haskey(Formats, key) || throw(ArgumentError(
-        "Unsupported file format '$ext'. Supported formats: " *
-        join(sort(collect(keys(Formats))), ", ")))
-    ext = Formats[key]
+    _, e = splitext(path)
+    key = evalext(lowercase(e))
+    ext = formats(key)
     buf = open(io -> read(io, 12), path)
     magic(buf, ext) || throw(ArgumentError(
         "File '$path' has extension '$ext' but does not appear to be a valid $(ext) file."))

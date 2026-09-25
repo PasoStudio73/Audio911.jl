@@ -11,7 +11,7 @@ end
 println("Julia version: ", VERSION)
 
 test_suites = [
-    ("Audioreader", ["audioreader.jl",]),
+    ("Audioreader", ["audio.jl",]),
     ("Frames", ["frames.jl",]),
     ("STFT", ["stft.jl",]),
     ("FilterBanks", ["fbank.jl",]),

@@ -167,7 +167,7 @@ export winpower, winmagnitude
 function get_data end
 function get_sr end
 
-export @format_str, File, AudioFile, load
+export Wav, Flac, Ogg, Mp3, File, AudioFile, load, save
 export filename, file_extension, formatname, detect_format
 export get_origin_sr, get_nchannels, is_norm, get_path
 export to_mono, normalize_peak

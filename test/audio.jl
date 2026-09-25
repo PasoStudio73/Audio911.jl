@@ -13,17 +13,17 @@ flac_file = test_file("test.flac")
 ogg_file = test_file("test.ogg")
 
 # ---------------------------------------------------------------------------------------- #
-#                                      audio reader                                        #
+#                                      load audio                                          #
 # ---------------------------------------------------------------------------------------- #
 @testset "audioreader" begin
-    @test_nowarn Audio911.File{format"WAV"}(wav_file)
-    @test_nowarn Audio911.File{format"MP3"}(mp3_file)
-    @test formatname(Audio911.File{format"WAV"}(wav_file)) == :WAV
-    @test file_extension(Audio911.File{format"MP3"}(mp3_file)) == ".mp3"
-    @test Audio911.detect_format(wav_file) == :WAV
-    @test Audio911.detect_format(mp3_file) == :MP3
-    @test Audio911.detect_format(flac_file) == :FLAC
-    @test Audio911.detect_format(ogg_file) == :OGG
+    @test_nowarn Audio911.File{Wav}(wav_file)
+    @test_nowarn Audio911.File{Mp3}(mp3_file)
+    @test formatname(Audio911.File{Wav}(wav_file)) === Wav
+    @test file_extension(Audio911.File{Mp3}(mp3_file)) === ".mp3"
+    @test Audio911.detect_format(wav_file) === Wav
+    @test Audio911.detect_format(mp3_file) === Mp3
+    @test Audio911.detect_format(flac_file) === Flac
+    @test Audio911.detect_format(ogg_file) === Ogg
 
     @test_nowarn Audio911.load(wav_file)
     @test_nowarn Audio911.load(mp3_file)
@@ -163,3 +163,51 @@ end
     peak = get_freq(spec)[argmax(vec(sum(get_spec(spec), dims=2)))]
     @test isapprox(peak, f0; atol=get_freq(spec)[2])
 end
+
+# ---------------------------------------------------------------------------------------- #
+#                                        save audio                                        #
+# ---------------------------------------------------------------------------------------- #
+@testset "save audio" begin
+    mktempdir() do dir
+        # 16-bit PCM: allow one full quantization step of error
+        q = 2 / 32768
+        # round-trip a matrix
+        out = joinpath(dir, "out.wav")
+        x = 0.5f0 .* sin.(2π * 440 .* (0:7999) ./ 8000)
+        x = hcat(x, 0.25f0 .* x)  # stereo
+        @test Audio911.save(out, x, 8000) == out
+        @test isfile(out)
+        @test Audio911.detect_format(out) === Wav
+        a = Audio911.load(out; mono=false)
+        @test get_sr(a) == 8000
+        @test get_nchannels(a) == 2
+        @test length(a) == 8000
+        @test maximum(abs.(get_data(a) .- x)) ≤ q
+
+        # round-trip a vector
+        out_vec = joinpath(dir, "out_vec.wav")
+        v = 0.9 .* sin.(2π * 100 .* (0:999) ./ 4000)
+        Audio911.save(out_vec, v, 4000)
+        b = Audio911.load(out_vec; format=Float64)
+        @test get_nchannels(b) == 1 && length(b) == 1000 && get_sr(b) == 4000
+        @test maximum(abs.(vec(get_data(b)) .- v)) ≤ q
+
+        # save an AudioFile directly
+        out_af = joinpath(dir, "out_af.wav")
+        orig = Audio911.load(wav_file)
+        Audio911.save(out_af, orig)
+        c = Audio911.load(out_af)
+        @test get_sr(c) == get_sr(orig)
+        @test length(c) == length(orig)
+        @test maximum(abs.(get_data(c) .- get_data(orig))) ≤ q
+
+        # invalid arguments
+        @test_throws ArgumentError Audio911.save(joinpath(dir, "bad.wav"), v, 0)
+        @test_throws ArgumentError Audio911.save(joinpath(dir, "bad.wav"), v, -8000)
+        # unwritable path
+        @test_throws Exception Audio911.save(joinpath(dir, "no_dir", "x.wav"), v, 8000)
+    end
+end
+
+@btime Audio911.load(wav_file);
+# 45.211 μs (42 allocations: 403.84 KiB)

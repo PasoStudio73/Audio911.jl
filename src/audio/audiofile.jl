@@ -22,8 +22,8 @@ function normalize_peak(x::Array{T}) where {T<:AbstractFloat}
 end
 
 """
-    resample(x, sr, new_sr; method=:polyphase, quality=:best, nzeros=nothing, rolloff=nothing,
-             window=kaiser, beta=nothing, scale=false) -> Array
+    resample(x, sr, new_sr; method=:polyphase, quality=:best, nzeros=nothing,
+             rolloff=nothing, window=kaiser, beta=nothing, scale=false) -> Array
 
 Resample a `frames × channels` signal from `sr` to `new_sr` Hz. The element
 type is kept.
@@ -70,7 +70,8 @@ end
     AudioFile{T} <: AbstractAudioFile
 
 An audio signal with its sample rate, as loaded by [`load`](@ref) or wrapped
-from an in-memory array with [`AudioFile(x, sr)`](@ref AudioFile(::AbstractVecOrMat, ::Int)).
+from an in-memory array with
+[`AudioFile(x, sr)`](@ref AudioFile(::AbstractVecOrMat, ::Int)).
 
 The samples are stored as a `frames × channels` matrix of `T`
 (`Float32` or `Float64`); a mono signal is `frames × 1`.
@@ -88,7 +89,8 @@ struct AudioFile{T<:AudioData} <: AbstractAudioFile
 end
 
 """
-    AudioFile(x::AbstractVecOrMat, sr::Int; mono=true, norm=false, new_sr=nothing, format=eltype(x)) -> AudioFile
+    AudioFile(x::AbstractVecOrMat, sr::Int; mono=true, norm=false, new_sr=nothing,
+              format=eltype(x)) -> AudioFile
 
 Wrap an in-memory signal (a vector, or a `frames × channels` matrix) sampled
 at `sr` Hz. This is the entry point for audio held in matrices or data-frame
@@ -115,7 +117,7 @@ function AudioFile(
     data = eltype(data) === format ? Matrix{format}(data) : Matrix{format}(format.(data))
     mono && size(data, 2) > 1 && (data = to_mono(data))
     target = isnothing(new_sr) ? sr : new_sr
-    target == sr || (data = resample(data, sr, target))
+    target === sr || (data = resample(data, sr, target))
     norm && (data = normalize_peak(data))
     return AudioFile{format}(data, target, sr, norm, String(path))
 end
@@ -191,8 +193,8 @@ end
 # ---------------------------------------------------------------------------------------- #
 #                                           load                                           #
 # ---------------------------------------------------------------------------------------- #
-_read_audio(::Type{T}, f::File{format"MP3"}) where T = _read_mp3(T, filename(f))
-_read_audio(::Type{T}, f::File) where T = _read_sndfile(T, filename(f))
+_read_audio(::Type{T}, f::File{Mp3}) where T = _read_mp3(T, filename(f))
+_read_audio(::Type{T}, f::File{S}) where {T,S} = _read_sndfile(T, filename(f))
 
 """
     load(path::String; sr=nothing, mono=true, norm=false, format=Float32) -> AudioFile
@@ -220,12 +222,12 @@ get_data(audio), get_sr(audio), get_nchannels(audio)
 ```
 """
 function load(
-    file::File;
+    file::File{S};
     sr::Maybe{Int}=nothing,
     mono::Bool=true,
     norm::Bool=false,
     format::Type=Float32
-)
+) where {S<:AbstractDataFormat}
     format <: AudioData ||
         throw(ArgumentError("format must be Float32 or Float64, got $format"))
     data, origin_sr = _read_audio(format, file)
@@ -234,5 +236,30 @@ end
 
 function load(path::String; kwargs...)
     sym = detect_format(path)
-    return load(File{AbstractDataFormat{sym}}(String(path)); kwargs...)
+    return load(File{sym}(String(path)); kwargs...)
 end
+
+# ---------------------------------------------------------------------------------------- #
+#                                           save                                           #
+# ---------------------------------------------------------------------------------------- #
+"""
+    save(path::String, x::AbstractVecOrMat, sr::Int)
+    save(path::String, a::AudioFile)
+
+Write a signal to a WAV file with libsndfile. `x` is a vector or a
+`frames × channels` matrix with samples in `[-1, 1]`.
+
+# Examples
+```julia
+save("out.wav", audio)
+save("out.wav", get_data(audio), get_sr(audio))
+```
+"""
+function save(path::String, x::AbstractVecOrMat{<:AbstractFloat}, sr::Int)
+    sr > 0 || throw(ArgumentError("sample rate must be positive, got $sr"))
+    data = x isa AbstractVector ? reshape(x, :, 1) : x
+    _write_sndfile(String(path), Matrix{Float64}(data), sr)
+    return path
+end
+
+save(path::String, a::AudioFile{T}) where T = save(path, get_data(a), get_sr(a))

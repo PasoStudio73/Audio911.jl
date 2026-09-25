@@ -1,12 +1,15 @@
-# ---------------------------------------------------------------------------- #
-#                              libsndfile bindings                             #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                    libsndfile bindings                                   #
+# ---------------------------------------------------------------------------------------- #
 # Minimal read-only bindings to libsndfile (WAV, FLAC, OGG/Vorbis).
-
 const SFM_READ = Int32(0x10)
+const SFM_WRITE = Int32(0x20)
+
+const SF_FORMAT_WAV = Int32(0x010000)
+const SF_FORMAT_PCM_16 = Int32(0x0002)
 
 mutable struct SF_INFO
-    frames::Int64
+    frames::Int
     samplerate::Int32
     channels::Int32
     format::Int32
@@ -17,21 +20,29 @@ SF_INFO() = SF_INFO(0, 0, 0, 0, 0, 0)
 
 function _sf_strerror(ptr::Ptr{Cvoid})
     s = ccall((:sf_strerror, libsndfile), Ptr{Cchar}, (Ptr{Cvoid},), ptr)
-    return s == C_NULL ? "unknown libsndfile error" : unsafe_string(s)
+    return s === C_NULL ? "unknown libsndfile error" : unsafe_string(s)
 end
 
 function _sf_open(path::String, info::SF_INFO)
-    ptr = ccall((:sf_open, libsndfile), Ptr{Cvoid}, (Cstring, Int32, Ref{SF_INFO}), path, SFM_READ, info)
-    ptr == C_NULL && throw(ArgumentError("libsndfile could not open '$path': $(_sf_strerror(C_NULL))"))
+    ptr = ccall(
+        (:sf_open, libsndfile),
+        Ptr{Cvoid},
+        (Cstring, Int32, Ref{SF_INFO}),
+        path,
+        SFM_READ,
+        info
+    )
+    ptr === C_NULL && throw(ArgumentError(
+        "libsndfile could not open '$path': $(_sf_strerror(C_NULL))"))
     return ptr
 end
 
 _sf_close(ptr::Ptr{Cvoid}) = ccall((:sf_close, libsndfile), Int32, (Ptr{Cvoid},), ptr)
 
-_sf_readf(ptr, dest::Matrix{Float32}, n) =
-    ccall((:sf_readf_float, libsndfile), Int64, (Ptr{Cvoid}, Ptr{Float32}, Int64), ptr, dest, n)
-_sf_readf(ptr, dest::Matrix{Float64}, n) =
-    ccall((:sf_readf_double, libsndfile), Int64, (Ptr{Cvoid}, Ptr{Float64}, Int64), ptr, dest, n)
+_sf_readf(ptr, dest::Matrix{Float32}, n) = ccall(
+    (:sf_readf_float, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float32}, Int), ptr, dest, n)
+_sf_readf(ptr, dest::Matrix{Float64}, n) = ccall(
+    (:sf_readf_double, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float64}, Int), ptr, dest, n)
 
 # read a whole file as (frames × channels) in T; samples are scaled to [-1, 1)
 function _read_sndfile(::Type{T}, path::String) where {T<:AudioData}
@@ -51,4 +62,27 @@ function _read_sndfile(::Type{T}, path::String) where {T<:AudioData}
     finally
         _sf_close(ptr)
     end
+end
+
+_sf_writef(ptr, src::Matrix{Float32}, n) = ccall(
+    (:sf_writef_float, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float32}, Int), ptr, src, n)
+_sf_writef(ptr, src::Matrix{Float64}, n) = ccall(
+    (:sf_writef_double, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float64}, Int), ptr, src, n)
+
+# write a (frames × channels) signal in [-1, 1] to a 16-bit PCM WAV file at sr Hz
+function _write_sndfile(path::String, data::Matrix{T}, sr::Int) where {T<:AbstractFloat}
+    info = SF_INFO(0, sr, size(data, 2), SF_FORMAT_WAV | SF_FORMAT_PCM_16, 0, 0)
+    ptr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
+        (Cstring, Int32, Ref{SF_INFO}), path, SFM_WRITE, info)
+    ptr === C_NULL && error(
+        "libsndfile could not open '$path' for writing: $(_sf_strerror(C_NULL))")
+    try
+        # libsndfile expects interleaved frames: (channels × frames) column-major
+        buf = Matrix{T}(permutedims(data))
+        n = Int(_sf_writef(ptr, buf, size(data, 1)))
+        n === size(data, 1) || error("libsndfile: wrote $n of $(size(data, 1)) frames")
+    finally
+        _sf_close(ptr)
+    end
+    return nothing
 end
