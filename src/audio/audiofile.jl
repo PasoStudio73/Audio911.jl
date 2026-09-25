@@ -106,7 +106,7 @@ function AudioFile(
     sr::Int;
     mono::Bool=true,
     norm::Bool=false,
-    new_sr::Maybe{Int}=nothing,
+    new_sr::Int=0,
     format::Type=eltype(x) <: AudioData ? eltype(x) : Float32,
     path::String=""
 )
@@ -116,10 +116,10 @@ function AudioFile(
     data = x isa AbstractVector ? reshape(x, :, 1) : x
     data = eltype(data) === format ? Matrix{format}(data) : Matrix{format}(format.(data))
     mono && size(data, 2) > 1 && (data = to_mono(data))
-    target = isnothing(new_sr) ? sr : new_sr
+    target = iszero(new_sr) ? sr : new_sr
     target === sr || (data = resample(data, sr, target))
     norm && (data = normalize_peak(data))
-    return AudioFile{format}(data, target, sr, norm, String(path))
+    return AudioFile{format}(data, target, sr, norm, path)
 end
 
 # ---------------------------------------------------------------------------------------- #
@@ -223,7 +223,7 @@ get_data(audio), get_sr(audio), get_nchannels(audio)
 """
 function load(
     file::File{S};
-    sr::Maybe{Int}=nothing,
+    sr::Int=0,
     mono::Bool=true,
     norm::Bool=false,
     format::Type=Float32
@@ -231,7 +231,7 @@ function load(
     format <: AudioData ||
         throw(ArgumentError("format must be Float32 or Float64, got $format"))
     data, origin_sr = _read_audio(format, file)
-    return AudioFile(data, origin_sr; mono, norm, new_sr=sr, format, path=filename(file))
+    return AudioFile(data, Int(origin_sr); mono, norm, new_sr=sr, format, path=filename(file))
 end
 
 function load(path::String; kwargs...)
