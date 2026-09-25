@@ -76,31 +76,27 @@ function _read_mp3(::Type{T}, path::String) where {T<:AudioData}
     mh = _mpg123_new()
     try
         _mpg123_open(mh, path)
-        # try
-            rate, nch, enc = _mpg123_getformat(mh)
-            enc === MPG123_ENC_SIGNED_16 || throw(ArgumentError("unsupported " *
-                "mpg123 encoding $enc in '$path' (only signed 16-bit is supported)"))
-            est = max(_mpg123_length(mh), 0)
-            block = max(_mpg123_outblock(mh) ÷ sizeof(Int16), nch * 1152)
-            buf = Vector{Int16}(undef, block)
-            acc = Vector{Int16}(undef, 0)
-            sizehint!(acc, est * nch)
-            while true
-                n, err = _mpg123_read!(mh, buf)
-                n > 0 && append!(acc, view(buf, 1:n))
-                err === MPG123_DONE && break
-                (n === 0 && err != MPG123_NEW_FORMAT) && break
-            end
-            nfr  = length(acc) ÷ nch
-            data = Matrix{T}(undef, nfr, nch)
-            scale = T(1 / 32768)
-            @inbounds for c in 1:nch, i in 1:nfr
-                data[i, c] = T(acc[(i - 1) * nch + c]) * scale
-            end
-            return data, rate
-        # finally
-        #     _mpg123_close(mh)
-        # end
+        rate, nch, enc = _mpg123_getformat(mh)
+        enc === MPG123_ENC_SIGNED_16 || throw(ArgumentError("unsupported " *
+            "mpg123 encoding $enc in '$path' (only signed 16-bit is supported)"))
+        est = max(_mpg123_length(mh), 0)
+        block = max(_mpg123_outblock(mh) ÷ sizeof(Int16), nch * 1152)
+        buf = Vector{Int16}(undef, block)
+        acc = Vector{Int16}(undef, 0)
+        sizehint!(acc, est * nch)
+        while true
+            n, err = _mpg123_read!(mh, buf)
+            n > 0 && append!(acc, view(buf, 1:n))
+            err === MPG123_DONE && break
+            (n === 0 && err != MPG123_NEW_FORMAT) && break
+        end
+        nfr  = length(acc) ÷ nch
+        data = Matrix{T}(undef, nfr, nch)
+        scale = T(1 / 32768)
+        @inbounds for c in 1:nch, i in 1:nfr
+            data[i, c] = T(acc[(i - 1) * nch + c]) * scale
+        end
+        return data, rate
     finally
         _mpg123_delete(mh)
     end

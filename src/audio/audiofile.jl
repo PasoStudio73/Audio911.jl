@@ -102,14 +102,14 @@ columns: wrap each column with its sample rate and feed it to the pipeline.
 - `format`: `Float32` or `Float64` (integers default to `Float32`)
 """
 function AudioFile(
-    x::AbstractVecOrMat{<:AbstractFloat},
+    x::Array{T},
     sr::Int;
     mono::Bool=true,
     norm::Bool=false,
     new_sr::Int=0,
     format::Type=eltype(x) <: AudioData ? eltype(x) : Float32,
     path::String=""
-)
+) where {T<:AbstractFloat}
     format <: AudioData ||
         throw(ArgumentError("format must be Float32 or Float64, got $format"))
     sr > 0 || throw(ArgumentError("sample rate must be positive, got $sr"))
