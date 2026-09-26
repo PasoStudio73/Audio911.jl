@@ -2,38 +2,29 @@
 #                                     file format types                                    #
 # ---------------------------------------------------------------------------------------- #
 """
-    AbstractDataFormat
+    SUPPORTED_FORMATS
 
-Abstract supertype of the audio container format tags. Each supported format
-is a concrete singleton subtype: [`Wav`](@ref), [`Flac`](@ref), [`Ogg`](@ref)
-(Vorbis) and [`Mp3`](@ref). [`detect_format`](@ref) returns one of these from
-a file's extension and magic bytes; [`File{F}`](@ref File) carries it as a
-type parameter.
+Supported audio container formats, identified by `Symbol`: `:wav`, `:flac`,
+`:ogg` (Vorbis) and `:mp3`. [`detect_format`](@ref) returns one of these from
+a file's extension and magic bytes; [`File`](@ref) carries it as a field.
 """
-abstract type AbstractDataFormat end
-
-"""WAV container format tag (see [`AbstractDataFormat`](@ref))."""
-struct Wav <: AbstractDataFormat end
-
-"""FLAC container format tag (see [`AbstractDataFormat`](@ref))."""
-struct Flac <: AbstractDataFormat end
-
-"""OGG (Vorbis) container format tag (see [`AbstractDataFormat`](@ref))."""
-struct Ogg <: AbstractDataFormat end
-
-"""MP3 container format tag (see [`AbstractDataFormat`](@ref))."""
-struct Mp3 <: AbstractDataFormat end
+const SUPPORTED_FORMATS = (:wav, :flac, :ogg, :mp3)
 
 """
-    File{F<:AbstractDataFormat}
+    File
 
-A path together with its audio format, `File{format"WAV"}("speech.wav")`.
+A path together with its audio format symbol, e.g. `File(:wav, "speech.wav")`.
 [`load`](@ref) builds one after checking the extension and the file's magic
 bytes; you can also construct one directly to skip the detection.
 """
-struct File{F<:AbstractDataFormat}
+struct File
+    format::Symbol
     filename::String
-    File{F}(file::String) where {F<:AbstractDataFormat} = new{F}(file)
+    function File(format::Symbol, file::String)
+        format in SUPPORTED_FORMATS || throw(ArgumentError(
+            "Unsupported format ':$format'. Supported formats: $(SUPPORTED_FORMATS)"))
+        new(format, file)
+    end
 end
 
 """
@@ -49,53 +40,35 @@ file_extension(f::File) = splitext(f.filename)[2]
 """
     formatname(f::File) -> Symbol
 
-The format tag, `Wav`, `Flac`, `Ogg` or `Mp3`.
+The format symbol: `:wav`, `:flac`, `:ogg` or `:mp3`.
 """
-formatname(::File{S}) where S = S
+formatname(f::File) = f.format
 
 # ---------------------------------------------------------------------------------------- #
 #                                       magic bytes                                        #
 # ---------------------------------------------------------------------------------------- #
-function evalext(e::UInt8)
-    e === 0x01 ? Wav :
-    e === 0x02 ? Flac :
-    e === 0x03 ? Ogg : Mp3
-end
-
 function evalext(e::String)
-    e === ".wav" ? Wav() :
-    e === ".flac" ? Flac() :
-    e === ".ogg" ? Ogg() :
-    e === ".mp3" ? Mp3() :
+    e == ".wav" ? :wav :
+    e == ".flac" ? :flac :
+    e == ".ogg" ? :ogg :
+    e == ".mp3" ? :mp3 :
     throw(ArgumentError("Unsupported file format '$e'. Supported formats: " *
         ".wav, .flac, .ogg, .mp3"))
-end
-
-function formats(e::Type{<:AbstractDataFormat})
-    e === Wav ? 0x01 :
-    e === Flac ? 0x02 :
-    e === Ogg ? 0x03 : 0x04
-end
-
-function magic(e::UInt8)
-    e === 0x01 ? _is_wav :
-    e === 0x02 ? _is_flac :
-    e === 0x03 ? _is_ogg : _is_mp3
 end
 
 _starts_with(buf::Vector{UInt8}, magic) =
     length(buf) ≥ length(magic) && all(i -> buf[i] == magic[i], eachindex(magic))
 
-function magic(buf::Vector{UInt8}, ext::UInt8)
+function magic(buf::Vector{UInt8}, fmt::Symbol)
     # WAV: "RIFF" .... "WAVE" (also RF64 / "RIFX" big endian are accepted by libsndfile)
-    return if evalext(ext) === Wav
+    return if fmt === :wav
         (_starts_with(buf, b"RIFF") ||
             _starts_with(buf, b"RF64") ||
             _starts_with(buf, b"RIFX")
         ) && length(buf) ≥ 12 && buf[9:12] == b"WAVE"
-    elseif evalext(ext) === Flac
+    elseif fmt === :flac
         _starts_with(buf, b"fLaC")
-    elseif evalext(ext) === Ogg
+    elseif fmt === :ogg
         _starts_with(buf, b"OggS")
     else
     # MP3: ID3v2 tag or an MPEG audio frame sync (11 set bits) at the start
@@ -112,17 +85,16 @@ end
 """
     detect_format(path) -> Symbol
 
-Format of an audio file from its extension, verified against the file's
-first bytes. Throws an `ArgumentError` for an unsupported extension or when
-the content does not match the extension.
+Format of an audio file from its extension (`:wav`, `:flac`, `:ogg` or
+`:mp3`), verified against the file's first bytes. Throws an `ArgumentError`
+for an unsupported extension or when the content does not match the extension.
 """
 function detect_format(path::String)
     isfile(path) || throw(ArgumentError("File '$path' does not exist."))
     _, e = splitext(path)
-    key = evalext(lowercase(e))
-    ext = formats(key)
+    fmt = evalext(lowercase(e))
     buf = open(io -> read(io, 12), path)
-    magic(buf, ext) || throw(ArgumentError(
-        "File '$path' has extension '$ext' but does not appear to be a valid $(ext) file."))
-    return evalext(ext)
+    magic(buf, fmt) || throw(ArgumentError(
+        "File '$path' has extension '$e' but does not appear to be a valid $(fmt) file."))
+    return fmt
 end

@@ -177,8 +177,8 @@ end
 # ---------------------------------------------------------------------------------------- #
 #                                           load                                           #
 # ---------------------------------------------------------------------------------------- #
-_read_audio(::Type{T}, f::File{Mp3}) where T = _read_mp3(T, filename(f))
-_read_audio(::Type{T}, f::File{S}) where {T,S} = _read_sndfile(T, filename(f))
+_read_audio(::Type{T}, f::File) where {T} =
+    formatname(f) === :mp3 ? _read_mp3(T, filename(f)) : _read_sndfile(T, filename(f))
 
 """
     load(path::String; sr=0, norm=false, format=Float32) -> AudioFile
@@ -206,11 +206,11 @@ get_data(audio), get_sr(audio)
 ```
 """
 function load(
-    file::File{S};
+    file::File;
     sr::Int=0,
     norm::Bool=false,
     format::Type{T}=Float32
-)::AudioFile{T} where {S<:AbstractDataFormat,T<:AbstractFloat}
+)::AudioFile{T} where {T<:AbstractFloat}
     format <: AbstractFloat ||
         throw(ArgumentError("format must be Float32 or Float64, got $format"))
     data, origin_sr = _read_audio(format, file)
@@ -218,8 +218,8 @@ function load(
 end
 
 function load(path::String; kwargs...)
-    sym = detect_format(path)
-    return load(File{sym}(String(path)); kwargs...)
+    fmt = detect_format(path)
+    return load(File(fmt, path); kwargs...)
 end
 
 # ---------------------------------------------------------------------------------------- #

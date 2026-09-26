@@ -16,14 +16,14 @@ ogg_file = test_file("test.ogg")
 #                                      load audio                                          #
 # ---------------------------------------------------------------------------------------- #
 @testset "audioreader" begin
-    @test_nowarn Audio911.File{Wav}(wav_file)
-    @test_nowarn Audio911.File{Mp3}(mp3_file)
-    @test formatname(Audio911.File{Wav}(wav_file)) === Wav
-    @test file_extension(Audio911.File{Mp3}(mp3_file)) === ".mp3"
-    @test Audio911.detect_format(wav_file) === Wav
-    @test Audio911.detect_format(mp3_file) === Mp3
-    @test Audio911.detect_format(flac_file) === Flac
-    @test Audio911.detect_format(ogg_file) === Ogg
+    @test_nowarn Audio911.File(:wav, wav_file)
+    @test_nowarn Audio911.File(:mp3, mp3_file)
+    @test formatname(Audio911.File(:wav, wav_file)) === :wav
+    @test file_extension(Audio911.File(:mp3, mp3_file)) === ".mp3"
+    @test Audio911.detect_format(wav_file) === :wav
+    @test Audio911.detect_format(mp3_file) === :mp3
+    @test Audio911.detect_format(flac_file) === :flac
+    @test Audio911.detect_format(ogg_file) === :ogg
 
     @test_nowarn Audio911.load(wav_file)
     @test_nowarn Audio911.load(mp3_file)
@@ -172,7 +172,7 @@ end
         x = 0.5f0 .* sin.(2π * 440 .* (0:7999) ./ 8000)
         @test Audio911.save(out, x, 8000) == out
         @test isfile(out)
-        @test Audio911.detect_format(out) === Wav
+        @test Audio911.detect_format(out) === :wav
         a = Audio911.load(out)
         @test get_sr(a) == 8000
         @test length(a) == 8000
@@ -257,10 +257,8 @@ section("AudioFile accessors")
 section("format detection")
 @code_warntype Audio911.detect_format(wav_file)
 @code_warntype Audio911.evalext(".wav")
-@code_warntype Audio911.evalext(0x01)
-@code_warntype Audio911.formats(Audio911.Wav)
-@code_warntype Audio911.magic(read(wav_file, 12), 0x01)
-f = Audio911.File{Wav}(wav_file)
+@code_warntype Audio911.magic(read(wav_file, 12), :wav)
+f = Audio911.File(:wav, wav_file)
 @code_warntype Audio911.filename(f)
 @code_warntype Audio911.file_extension(f)
 @code_warntype Audio911.formatname(f)
@@ -270,7 +268,7 @@ section("load")
 @code_warntype Audio911.load(wav_file)
 @code_warntype Audio911.load(f; sr=8000, norm=true, format=Float64)
 @code_warntype Audio911._read_audio(Float32, f)
-@code_warntype Audio911._read_audio(Float32, Audio911.File{Mp3}(mp3_file))
+@code_warntype Audio911._read_audio(Float32, Audio911.File(:mp3, mp3_file))
 
 section("save")
 out = tempname() * ".wav"
@@ -293,7 +291,7 @@ section("@inferred summary")
     @test @inferred(Audio911.resample(v32, 8000, 16000)) isa Vector{Float32}
     @test @inferred(Audio911.get_data(af)) isa Vector{Float32}
     @test @inferred(Audio911.get_duration(af)) isa Float64
-    @test @inferred(Audio911.detect_format(wav_file)) isa Audio911.FormatType
+    @test @inferred(Audio911.detect_format(wav_file)) isa Symbol
     @test @inferred(Audio911._read_sndfile(Float32, wav_file)) isa Tuple{Vector{Float32}, Int}
     @test @inferred(Audio911._read_mp3(Float32, mp3_file)) isa Tuple{Vector{Float32}, Int}
 end
@@ -302,3 +300,4 @@ end
 # 45.211 μs (42 allocations: 403.84 KiB)
 # 28.487 μs (37 allocations: 269.70 KiB)
 # 34.320 μs (38 allocations: 269.75 KiB)
+# 31.618 μs (36 allocations: 269.69 KiB)
