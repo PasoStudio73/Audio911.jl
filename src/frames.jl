@@ -258,9 +258,9 @@ windowing) into `buf`, which must have length `get_size(f)`.
     @inbounds copyto!(buf, 1, x, s, n)
     if f.info.dc_removal
         μ = zero(T)
-        @inbounds @simd for j in 1:n; μ += buf[j]; end
+        @inbounds for j in 1:n; μ += buf[j]; end
         μ /= n
-        @inbounds @simd for j in 1:n; buf[j] -= μ; end
+        @inbounds for j in 1:n; buf[j] -= μ; end
     end
     k = T(f.info.preemph)
     if !iszero(k)
@@ -310,11 +310,11 @@ function get_energy(f::Frames{T}) where T
         acc = zero(T)
         if f.info.dc_removal
             μ = zero(T)
-            @simd for j in s:s+n-1; μ += x[j]; end
+         for j in s:s+n-1; μ += x[j]; end
             μ /= n
-            @simd for j in s:s+n-1; acc += (x[j] - μ)^2; end
+         for j in s:s+n-1; acc += (x[j] - μ)^2; end
         else
-            @simd for j in s:s+n-1; acc += x[j]^2; end
+         for j in s:s+n-1; acc += x[j]^2; end
         end
         e[i] = acc
     end
