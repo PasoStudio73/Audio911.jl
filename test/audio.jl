@@ -1,6 +1,7 @@
 using Test
 using Audio911
 
+using InteractiveUtils
 using MAT
 
 test_files_dir() = joinpath(dirname(@__FILE__), "test_files")
@@ -206,13 +207,6 @@ end
 # ---------------------------------------------------------------------------------------- #
 #                                      code warntype                                       #
 # ---------------------------------------------------------------------------------------- #
-# Type-stability audit for src/audio/{audiofile,formats,libsndfile,mpg123}.jl
-# Run interactively: `include("test/code_warntype.jl")` and read the output.
-# Red (`Any`, `Union{...}`) entries in `Body::` are the ones to fix.
-using Audio911
-using InteractiveUtils   # @code_warntype
-using Test               # @inferred
-
 wav_file  = joinpath(@__DIR__, "test_files", "test.wav")
 mp3_file  = joinpath(@__DIR__, "test_files", "test.mp3")
 flac_file = joinpath(@__DIR__, "test_files", "test.flac")
@@ -263,7 +257,7 @@ f = Audio911.File(:wav, wav_file)
 @code_warntype Audio911.file_extension(f)
 @code_warntype Audio911.formatname(f)
 
-# ------------------------------------------------------------------ load / save
+# load / save
 section("load")
 @code_warntype Audio911.load(wav_file)
 @code_warntype Audio911.load(f; sr=8000, norm=true, format=Float64)
@@ -275,7 +269,7 @@ out = tempname() * ".wav"
 @code_warntype Audio911.save(out, v32, 8000)
 @code_warntype Audio911.save(out, af)
 
-# ------------------------------------------------------------------ C bindings
+# C bindings
 section("libsndfile")
 @code_warntype Audio911._read_sndfile(Float32, wav_file)
 @code_warntype Audio911._write_sndfile(out, v32, 8000)
@@ -283,7 +277,7 @@ section("libsndfile")
 section("mpg123")
 @code_warntype Audio911._read_mp3(Float32, mp3_file)
 
-# ------------------------------------------------------------------ automated pass
+# automated pass
 section("@inferred summary")
 @testset "type stability" begin
     @test @inferred(Audio911.to_mono(m32)) isa Matrix{Float32}

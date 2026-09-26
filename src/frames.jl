@@ -467,7 +467,7 @@ function Frames(
     starts = 1:winstep:(n - winsize + 1)
     window = _make_window(T, type, winsize, periodic)
     info = FramesSetup(sr, winsize, winstep, type, periodic, center, pad_mode,
-        Float64(preemph), dc_removal, pad_end, offset)
+        T(preemph), dc_removal, pad_end, offset)
 
     return Frames{T}(data, starts, window, info)
 end
