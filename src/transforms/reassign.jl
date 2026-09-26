@@ -25,7 +25,7 @@ grid (`bins × frames`). [`get_reassigned`](@ref) gives the reassigned
 frequency and time of every cell. It implements the front-end interface.
 See [`Reassign(stft; kwargs...)`](@ref Reassign(::Stft)).
 """
-struct Reassign{F,T<:AudioData} <: AbstractSpectrogram
+struct Reassign{F,T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     freqs  :: Matrix{T}
     times  :: Matrix{T}

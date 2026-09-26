@@ -56,7 +56,7 @@ every frame of a [`Frames`](@ref) object, built by [`Wvd`](@ref) or
 interface requires non-negative values); [`get_distribution`](@ref) is the
 signed distribution.
 """
-struct CohenDistribution{T<:AudioData} <: AbstractSpectrogram
+struct CohenDistribution{T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     dist   :: Matrix{T}
     freq   :: Vector{T}

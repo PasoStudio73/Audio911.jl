@@ -46,7 +46,7 @@ function pwt(x::AbstractVector{<:Real}, sr::Int; nbands::Int=84, scale::Function
     return Y, get_freq(fb)
 end
 
-struct PwtSetup{T<:AudioData} <: AbstractSetup
+struct PwtSetup{T<:AbstractFloat} <: AbstractSetup
     sr              :: Int64
     winsize         :: Int64
     winstep         :: Int64
@@ -68,7 +68,7 @@ Pseudo wavelet transform of a signal pooled on the time grid of a
 magnitude, on the frequency grid of the filterbank. Implements the front-end
 interface. See [`Pwt(frames; kwargs...)`](@ref Pwt(::Frames)).
 """
-struct Pwt{T<:AudioData} <: AbstractSpectrogram
+struct Pwt{T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}

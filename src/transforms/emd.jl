@@ -132,7 +132,7 @@ function ([`emd`](@ref)) accumulated at its instantaneous frequency on a
 linear grid, pooled on the frames of a [`Frames`](@ref) object. See
 [`Hht(frames; kwargs...)`](@ref Hht(::Frames)).
 """
-struct Hht{T<:AudioData} <: AbstractSpectrogram
+struct Hht{T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}

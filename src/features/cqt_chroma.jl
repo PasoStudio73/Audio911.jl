@@ -13,7 +13,7 @@ Folding matrix of a constant-Q grid onto `nchroma` pitch classes (audioFlux
 the pitch class C whatever `fmin` is. `bins_per_octave` must be a multiple
 of `nchroma`.
 """
-function cqt_chroma_fbank(freq::AbstractVector{T}, bins_per_octave::Int; nchroma::Int=12, sr::Int=0) where {T<:AudioData}
+function cqt_chroma_fbank(freq::AbstractVector{T}, bins_per_octave::Int; nchroma::Int=12, sr::Int=0) where {T<:AbstractFloat}
     nchroma ≥ 1 || throw(ArgumentError("nchroma must be ≥ 1"))
     bins_per_octave % nchroma == 0 || throw(ArgumentError(
         "bins_per_octave ($bins_per_octave) must be a multiple of nchroma ($nchroma)"))

@@ -63,10 +63,10 @@ function evalext(e::UInt8)
 end
 
 function evalext(e::String)
-    e === ".wav" ? Wav :
-    e === ".flac" ? Flac :
-    e === ".ogg" ? Ogg :
-    e === ".mp3" ? Mp3 :
+    e === ".wav" ? Wav() :
+    e === ".flac" ? Flac() :
+    e === ".ogg" ? Ogg() :
+    e === ".mp3" ? Mp3() :
     throw(ArgumentError("Unsupported file format '$e'. Supported formats: " *
         ".wav, .flac, .ogg, .mp3"))
 end

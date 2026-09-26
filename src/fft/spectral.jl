@@ -217,7 +217,7 @@ end
 # an info record; the macro only writes the boilerplate.
 macro descriptor(name, setup, doc)
     quote
-        Core.@doc $doc struct $(esc(name)){F,T<:AudioData} <: AbstractSpectral
+        Core.@doc $doc struct $(esc(name)){F,T<:AbstractFloat} <: AbstractSpectral
             spec   :: Vector{T}
             parent :: F
             info   :: $(esc(setup))

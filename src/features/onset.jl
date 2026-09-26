@@ -176,7 +176,7 @@ Local auto-correlation tempogram (Grosche, Müller & Kurth 2010; librosa
 `tempogram`), `win_length × frames`; row `k` is lag `k - 1` frames.
 `get_freq` returns the tempo of every lag in BPM (`Inf` at lag 0).
 """
-struct Tempogram{F,T<:AudioData} <: AbstractSpectrogram
+struct Tempogram{F,T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     parent :: F
     info   :: TempogramSetup

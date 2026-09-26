@@ -111,7 +111,7 @@ end
 # ---------------------------------------------------------------------------- #
 #                                   front end                                  #
 # ---------------------------------------------------------------------------- #
-struct NsgtSetup{T<:AudioData} <: AbstractSetup
+struct NsgtSetup{T<:AbstractFloat} <: AbstractSetup
     sr              :: Int64
     winsize         :: Int64
     winstep         :: Int64
@@ -136,7 +136,7 @@ chosen scale. The cells (one complex series per band at the band's own time
 resolution) are kept and returned by [`get_cells`](@ref). Implements the
 front-end interface. See [`Nsgt(frames; kwargs...)`](@ref Nsgt(::Frames)).
 """
-struct Nsgt{T<:AudioData} <: AbstractSpectrogram
+struct Nsgt{T<:AbstractFloat} <: AbstractSpectrogram
     spec    :: Matrix{T}
     freq    :: Vector{T}
     frames  :: Frames{T}

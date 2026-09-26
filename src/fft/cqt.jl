@@ -9,7 +9,7 @@
 # octaves on a decimated signal; here every bin is evaluated on the full-rate
 # signal (the direct method), which is exact but slower.
 
-struct CqtSetup{T<:AudioData} <: AbstractSetup
+struct CqtSetup{T<:AbstractFloat} <: AbstractSetup
     sr              :: Int64
     nfft            :: Int64
     winsize         :: Int64
@@ -41,7 +41,7 @@ the complex coefficients.
 Build one with [`Cqt(frames; kwargs...)`](@ref Cqt(::Frames)) or
 [`Cqt(audio; kwargs...)`](@ref Cqt(::AudioFile)).
 """
-struct Cqt{T<:AudioData} <: AbstractSpectrogram
+struct Cqt{T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}
@@ -284,7 +284,7 @@ function Cqt(
     scale           :: Bool=true,
     spectrum        :: Base.Callable=power,
     keep_complex    :: Bool=false,
-) where {T<:AudioData}
+) where {T<:AbstractFloat}
     sr = get_sr(frames)
     fmin > 0 || throw(ArgumentError("fmin must be positive, got $fmin"))
     bins_per_octave ≥ 1 || throw(ArgumentError("bins_per_octave must be ≥ 1"))

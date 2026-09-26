@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------- #
 #                                    info                                      #
 # ---------------------------------------------------------------------------- #
-struct StftSetup{T<:AudioData} <: AbstractSetup
+struct StftSetup{T<:AbstractFloat} <: AbstractSetup
     sr       :: Int64
     nfft     :: Int64
     winsize  :: Int64
@@ -28,14 +28,14 @@ hop). It is the default time-frequency front end of the pipeline; see
 Build one with [`Stft(frames; nfft, spectrum)`](@ref Stft(::Frames)) or
 [`Stft(audio; kwargs...)`](@ref Stft(::AudioFile)).
 """
-struct Stft{T<:AudioData} <: AbstractSpectrogram
+struct Stft{T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     freq   :: StepRangeLen{T}
     frames :: Frames{T}
     info   :: StftSetup{T}
     cplx   :: Maybe{Matrix{Complex{T}}}
 end
-Stft{T}(spec, freq, frames, info) where {T<:AudioData} = Stft{T}(spec, freq, frames, info, nothing)
+Stft{T}(spec, freq, frames, info) where {T<:AbstractFloat} = Stft{T}(spec, freq, frames, info, nothing)
 
 #------------------------------------------------------------------------------#
 #                                   methods                                    #
@@ -237,7 +237,7 @@ function Stft(
     spectrum :: Base.Callable=power,
     scale    :: Real=1,
     keep_complex :: Bool=false,
-) where {T<:AudioData}
+) where {T<:AbstractFloat}
     sr      = get_sr(frames)
     winsize = get_winsize(frames)
     overlap = get_overlap(frames)

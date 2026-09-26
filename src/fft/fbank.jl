@@ -23,7 +23,7 @@ the centre frequency and bandwidth of every band, and the design parameters.
 Built by [`auditory_fbank`](@ref) (triangular mel/bark filters) or
 [`gammatone_fbank`](@ref) (gammatone ERB filters).
 """
-struct FBank{T<:AudioData} <: AbstractFBank
+struct FBank{T<:AbstractFloat} <: AbstractFBank
     fbank::Matrix{T}
     freq::Vector{T}
     bw::Vector{T}
@@ -38,7 +38,7 @@ struct FBank{T<:AudioData} <: AbstractFBank
         scale::Symbol,
         norm::Base.Callable,
         freqrange::FreqRange,
-    ) where {T<:AudioData}
+    ) where {T<:AbstractFloat}
         new{T}(
             Matrix{T}(filterbank),
             Vector{T}(filtfreq),
@@ -140,7 +140,7 @@ Pass as `scale=htk` to [`auditory_fbank`](@ref) or [`MelSpec`](@ref).
 `htk(T, freqrange, nbands)` returns the `nbands + 2` band edges in Hz;
 `htk(hz)` maps frequencies to mel.
 """
-const htk(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
+const htk(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AbstractFloat} = begin
     melrange = @. 2595 * log10(1 + T.(hz) / 700)
     melvec = LinRange(get_low(melrange), get_hi(melrange), nbands + 2)  
     return @. 700 * (exp10(melvec / 2595) - 1)
@@ -153,7 +153,7 @@ Slaney's mel scale (linear below 1 kHz, logarithmic above; librosa's
 default, MATLAB's `"slaney"`). Pass as `scale=slaney`. Same call forms as
 [`htk`](@ref).
 """
-const slaney(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
+const slaney(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AbstractFloat} = begin
     lin_step = T(200 / 3)
     cp_mel = T(1000 / lin_step)
     logstep = T(log(6.4) / 27)
@@ -171,7 +171,7 @@ end
 Traunmüller's bark scale with the corrections below 2 and above 20.1 bark
 (MATLAB's `"bark"`). Used by [`BarkSpec`](@ref); same call forms as [`htk`](@ref).
 """
-const bark(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
+const bark(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AbstractFloat} = begin
     bark_val = @. 26.81 * hz / (1960 + hz) - 0.53
     barkrange = map(x -> x < 2 ?
         0.85 * x + 0.3 :
@@ -192,16 +192,16 @@ const bark(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
 end
 
 # these functions are exclusively used in case of `domain = :warped`
-const htk(hz::AbstractVector{<:AudioData}) =
+const htk(hz::AbstractVector{<:AbstractFloat}) =
     @. 2595 * log10(1 + hz / 700)
 
-const slaney(hz::AbstractVector{<:AudioData}) = begin
+const slaney(hz::AbstractVector{<:AbstractFloat}) = begin
     lin_step = 200 / 3
     return @. ifelse(hz < 1000, hz / lin_step,
         log(hz * 0.001) / (log(6.4) / 27) + (1000 / lin_step))  
 end
 
-const bark(hz::AbstractVector{<:AudioData}) =
+const bark(hz::AbstractVector{<:AbstractFloat}) =
     @. 26.81 * hz / (1960 + hz) - 0.53
 
 # ---------------------------------------------------------------------------- #
@@ -219,13 +219,13 @@ Linearly spaced band centres between the two ends of the frequency range
 (audioFlux `LINSPACE`). Pass as `scale=linspace` to [`auditory_fbank`](@ref)
 or [`MelSpec`](@ref). Same call forms as [`htk`](@ref).
 """
-const linspace(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
+const linspace(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AbstractFloat} = begin
     lo, hi = T(get_low(hz)), T(get_hi(hz))
     nbands ≥ 2 || throw(ArgumentError("linspace needs at least 2 bands"))
     step = (hi - lo) / (nbands - 1)
     return collect(LinRange(lo - step, hi + step, nbands + 2))
 end
-const linspace(hz::AbstractVector{<:AudioData}) = hz
+const linspace(hz::AbstractVector{<:AbstractFloat}) = hz
 
 """
     erb
@@ -235,13 +235,13 @@ triangular (or window-shaped) filters (audioFlux `ERB`). Pass as `scale=erb`.
 [`ErbSpec`](@ref) uses gammatone filters instead; this scale gives the
 triangular variant. Same call forms as [`htk`](@ref).
 """
-const erb(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
+const erb(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AbstractFloat} = begin
     a = T(21.3654)
     erbrange = @. a * log10(1 + T(hz) * T(0.004368))
     erbvec = LinRange(get_low(erbrange), get_hi(erbrange), nbands + 2)
     return @. (exp10(erbvec / a) - 1) / T(0.004368)
 end
-const erb(hz::AbstractVector{<:AudioData}) = @. 21.3654 * log10(1 + hz * 0.004368)
+const erb(hz::AbstractVector{<:AbstractFloat}) = @. 21.3654 * log10(1 + hz * 0.004368)
 
 """
     octave
@@ -252,14 +252,14 @@ frequency range is rounded to the nearest bin and `nbands` consecutive bins
 follow; the high end is ignored. Pass as `scale=octave` together with the
 `bins_per_octave` keyword of [`auditory_fbank`](@ref).
 """
-const octave(::Type{T}, hz::FreqRange, nbands::Int; bins_per_octave::Int=12) where {T<:AudioData} = begin
+const octave(::Type{T}, hz::FreqRange, nbands::Int; bins_per_octave::Int=12) where {T<:AbstractFloat} = begin
     get_low(hz) > 0 || throw(ArgumentError("the octave scale needs a positive low frequency"))
     4 ≤ bins_per_octave ≤ 48 || throw(ArgumentError("bins_per_octave must be in 4:48, got $bins_per_octave"))
     b = bins_per_octave
     low = round(b * log2(get_low(hz) / 440)) - 1
     return T[440 * 2.0^((low + k) / b) for k in 0:nbands+1]
 end
-const octave(hz::AbstractVector{<:AudioData}; bins_per_octave::Int=12) = @. bins_per_octave * log2(hz / 440)
+const octave(hz::AbstractVector{<:AbstractFloat}; bins_per_octave::Int=12) = @. bins_per_octave * log2(hz / 440)
 
 """
     logspace
@@ -268,14 +268,14 @@ Geometrically spaced band centres between the two ends of the frequency
 range (audioFlux `LOG`). Pass as `scale=logspace`. Same call forms as
 [`htk`](@ref).
 """
-const logspace(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AudioData} = begin
+const logspace(::Type{T}, hz::FreqRange, nbands::Int) where {T<:AbstractFloat} = begin
     get_low(hz) > 0 || throw(ArgumentError("the logspace scale needs a positive low frequency"))
     nbands ≥ 2 || throw(ArgumentError("logspace needs at least 2 bands"))
     lo, hi = log2(get_low(hz) / 440), log2(get_hi(hz) / 440)
     step = (hi - lo) / (nbands - 1)
     return T[440 * 2.0^v for v in LinRange(lo - step, hi + step, nbands + 2)]
 end
-const logspace(hz::AbstractVector{<:AudioData}) = @. log2(hz / 440)
+const logspace(hz::AbstractVector{<:AbstractFloat}) = @. log2(hz / 440)
 
 const AVAIL_SCALES = (htk, slaney, bark, linspace, erb, octave, logspace)
 _band_edges(::Type{T}, scale, hz::FreqRange, nbands::Int, bins_per_octave::Int) where T =
@@ -352,7 +352,7 @@ function normalize!(
     filterbank::AbstractMatrix{T},
     norm_func::Function,
     bw::AbstractVector{T}
-) where {T<:AudioData}
+) where {T<:AbstractFloat}
     weight_per_band = norm_func(filterbank, bw)
     @. filterbank /= (weight_per_band + (weight_per_band == 0))
 end
@@ -363,7 +363,7 @@ end
 # Gammatone filters model the impulse response of the human auditory system
 # using a cascade of second-order sections (SOS). This function computes the
 # filter coefficients based on the Equivalent Rectangular Bandwidth (ERB) scale.
-function compute_gammatone_coeffs(sr::Int, bands::AbstractVector{<:AudioData})
+function compute_gammatone_coeffs(sr::Int, bands::AbstractVector{<:AbstractFloat})
     t = 1 / sr
     erb = @. bands / 9.26449 + 24.7
     filt = 1.019 * 2π * erb
@@ -425,7 +425,7 @@ or warped frequency domains for different spectral analysis applications.
 - `sr::Int`: Sampling rate in Hz (required)
 
 # Keyword Arguments
-- `sfreq::Union{AbstractVector{<:AudioData},Nothing}`: frequency grid (Hz)
+- `sfreq::Union{AbstractVector{<:AbstractFloat},Nothing}`: frequency grid (Hz)
   the filterbank is evaluated on. Any ascending grid works (an FFT grid, the
   geometric grid of a scalogram, ...); its element type fixes the element
   type of the filterbank. If `nothing`, the one-sided FFT grid of `nfft` is
@@ -581,7 +581,7 @@ fb = auditory_fbank(16000;
 """
 function auditory_fbank(
     sr::Int;
-    sfreq::Union{AbstractVector{<:AudioData},Nothing}=nothing,
+    sfreq::Union{AbstractVector{<:AbstractFloat},Nothing}=nothing,
     nfft::Int=512,
     nbands::Int=26,
     scale::Function=htk, # htk, slaney, bark, linspace, erb, octave, logspace
@@ -789,7 +789,7 @@ fb = gammatone_fbank(44100;
 """
 function gammatone_fbank(
     sr::Int;
-    sfreq::Union{AbstractVector{<:AudioData},Nothing}=nothing,
+    sfreq::Union{AbstractVector{<:AbstractFloat},Nothing}=nothing,
     nfft::Int=512,
     nbands::Int=26,
     norm::Function=bandwidth, # area, bandwidth, or none_norm

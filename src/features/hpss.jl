@@ -16,7 +16,7 @@ component, a gated or PCEN-compressed version). It implements the full
 front-end interface, so it can feed filterbanks, cepstra and descriptors
 exactly like the spectrogram it came from.
 """
-struct DerivedSpec{F,T<:AudioData} <: AbstractSpectrogram
+struct DerivedSpec{F,T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     parent :: F
     info   :: DerivedSetup
@@ -110,7 +110,7 @@ Result of [`Hpss`](@ref Hpss(::AbstractSpectrogram)): the harmonic and
 percussive components (`get_harmonic`, `get_percussive`) as
 [`DerivedSpec`](@ref) spectrograms, plus the two soft masks.
 """
-struct Hpss{H,P,T<:AudioData}
+struct Hpss{H,P,T<:AbstractFloat}
     harmonic   :: H
     percussive :: P
     mask_h     :: Matrix{T}

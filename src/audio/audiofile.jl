@@ -78,7 +78,7 @@ Accessors: [`get_data`](@ref), [`get_sr`](@ref), [`get_origin_sr`](@ref),
 [`is_norm`](@ref), [`get_path`](@ref), [`get_duration`](@ref),
 `length`, `eltype`.
 """
-struct AudioFile{T<:AudioData} <: AbstractAudioFile
+struct AudioFile{T<:AbstractFloat} <: AbstractAudioFile
     data::Vector{T}
     sr::Int
     origin_sr::Int
@@ -103,16 +103,13 @@ function AudioFile(
     sr::Int;
     norm::Bool=false,
     new_sr::Int=0,
-    format::Type=eltype(data) <: AudioData ? eltype(data) : Float32,
     path::String=""
 ) where {T<:AbstractFloat}
-    format <: AudioData ||
-        throw(ArgumentError("format must be Float32 or Float64, got $format"))
     sr > 0 || throw(ArgumentError("sample rate must be positive, got $sr"))
     target = iszero(new_sr) ? sr : new_sr
     target === sr || (data = resample(data, sr, target))
     norm && (data = normalize_peak(data))
-    return AudioFile{format}(data, target, sr, norm, path)
+    return AudioFile{T}(data, target, sr, norm, path)
 end
 
 # ---------------------------------------------------------------------------------------- #
@@ -212,12 +209,12 @@ function load(
     file::File{S};
     sr::Int=0,
     norm::Bool=false,
-    format::Type=Float32
-) where {S<:AbstractDataFormat}
-    format <: AudioData ||
+    format::Type{T}=Float32
+)::AudioFile{T} where {S<:AbstractDataFormat,T<:AbstractFloat}
+    format <: AbstractFloat ||
         throw(ArgumentError("format must be Float32 or Float64, got $format"))
     data, origin_sr = _read_audio(format, file)
-    return AudioFile(data, origin_sr; norm, new_sr=sr, format, path=filename(file))
+    return AudioFile(data, origin_sr; norm, new_sr=sr, path=filename(file))
 end
 
 function load(path::String; kwargs...)

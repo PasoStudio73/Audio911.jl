@@ -151,7 +151,7 @@ A synchrosqueezed wavelet spectrogram on the grid of a [`Cwt`](@ref) (same
 bands, same frames), built by [`Synsq`](@ref) or [`Wsst`](@ref). It
 implements the front-end interface.
 """
-struct Synchrosqueezed{F,T<:AudioData} <: AbstractSpectrogram
+struct Synchrosqueezed{F,T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     parent :: F
     info   :: SqueezeSetup

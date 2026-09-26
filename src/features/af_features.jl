@@ -45,7 +45,7 @@ pitch (fine structure) part, audioFlux `deconv`; both `bins × frames`.
 [`get_timbre`](@ref) and [`get_pitch`](@ref) return them, `get_data` the
 timbre part.
 """
-struct Deconv{F,T<:AudioData} <: AbstractAudioSpectrum
+struct Deconv{F,T<:AbstractFloat} <: AbstractAudioSpectrum
     timbre :: Matrix{T}
     pitch  :: Matrix{T}
     parent :: F
@@ -126,7 +126,7 @@ details (audioFlux `Cepstrogram`). `get_data` is the cepstrum
 [`get_envelope`](@ref) and [`get_details`](@ref) are log-power spectra on
 the STFT grid ([`get_freq`](@ref)).
 """
-struct Cepstrogram{T<:AudioData} <: AbstractAudioSpectrum
+struct Cepstrogram{T<:AbstractFloat} <: AbstractAudioSpectrum
     cepstrum :: Matrix{T}
     envelope :: Matrix{T}
     details  :: Matrix{T}

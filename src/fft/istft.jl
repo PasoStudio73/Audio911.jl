@@ -40,7 +40,7 @@ y = istft(stft)                       # ≈ the audio samples
 function istft(C::AbstractMatrix{Complex{T}}, winsize::Int, winstep::Int;
                window::Union{Base.Callable,AbstractVector}=hanning, periodic::Bool=true,
                nfft::Int=2 * (size(C, 1) - 1), method::Symbol=:wola, offset::Int=0,
-               length::Maybe{Int}=nothing) where {T<:AudioData}
+               length::Maybe{Int}=nothing) where {T<:AbstractFloat}
     nb, nf = size(C)
     nb == nfft ÷ 2 + 1 || throw(DimensionMismatch("C has $nb bins, a one-sided STFT of nfft=$nfft has $(nfft ÷ 2 + 1)"))
     winsize ≤ nfft || throw(ArgumentError("winsize ($winsize) must be ≤ nfft ($nfft)"))

@@ -44,7 +44,7 @@ Orthonormal DCT-II matrix: row 0 scaled by `sqrt(1/N)`, rows `k ≥ 1` by
 `sqrt(2/N)`. Used by MATLAB, Kaldi, librosa (`norm="ortho"`) and
 python_speech_features.
 """
-function dct_ortho(::Type{T}, N::Int) where {T<:AudioData}
+function dct_ortho(::Type{T}, N::Int) where {T<:AbstractFloat}
     D = Matrix{T}(undef, N, N)
     s0, s1 = sqrt(1 / N), sqrt(2 / N)
     @inbounds for n in 1:N
@@ -61,7 +61,7 @@ end
 
 HTK's DCT-II matrix: every row, including row 0, scaled by `sqrt(2/N)`.
 """
-function dct_htk(::Type{T}, N::Int) where {T<:AudioData}
+function dct_htk(::Type{T}, N::Int) where {T<:AbstractFloat}
     D = dct_ortho(T, N)
     D[1, :] .= T(sqrt(2 / N))
     return D
@@ -72,7 +72,7 @@ end
 
 Unscaled DCT-II matrix `cos(π k (n + 0.5) / N)` (ETSI ES 201 108).
 """
-function dct_plain(::Type{T}, N::Int) where {T<:AudioData}
+function dct_plain(::Type{T}, N::Int) where {T<:AbstractFloat}
     D = Matrix{T}(undef, N, N)
     @inbounds for n in 1:N, k in 1:N
         D[k, n] = T(cos(π * (k - 1) * (n - 0.5) / N))
@@ -129,7 +129,7 @@ end
 Mel-frequency cepstral coefficients, stored as `ncoeffs × frames`. `F` is the
 type of the spectrogram they were computed from. See [`Mfcc(spec; kwargs...)`](@ref Mfcc(::AbstractSpectrogram)).
 """
-struct Mfcc{F,T<:AudioData} <: AbstractCepstrum
+struct Mfcc{F,T<:AbstractFloat} <: AbstractCepstrum
     spec   :: Matrix{T}
     parent :: F
     info   :: MfccSetup
@@ -141,7 +141,7 @@ end
 Gammatone cepstral coefficients (MATLAB's `gtcc`), the cepstrum of an
 [`ErbSpec`](@ref). See [`Gtcc`](@ref Gtcc(::ErbSpec)).
 """
-struct Gtcc{F,T<:AudioData} <: AbstractCepstrum
+struct Gtcc{F,T<:AbstractFloat} <: AbstractCepstrum
     spec   :: Matrix{T}
     parent :: F
     info   :: MfccSetup

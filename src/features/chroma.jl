@@ -23,7 +23,7 @@ end
 
 A `nchroma × nbins` chroma projection matrix built by [`chroma_fbank`](@ref).
 """
-struct ChromaFBank{T<:AudioData} <: AbstractFBank
+struct ChromaFBank{T<:AbstractFloat} <: AbstractFBank
     fbank::Matrix{T}
     freq::Vector{T}
     setup::ChromaFBankSetup
@@ -48,7 +48,7 @@ when `octwidth` is given, with a Gaussian octave weighting centred on
 `ctroct`. Columns are L2-normalised; `base_c=true` makes row 1 the pitch
 class C.
 """
-function chroma_fbank(sr::Int; sfreq::AbstractVector{<:AudioData}, nchroma::Int=12, tuning::Real=0,
+function chroma_fbank(sr::Int; sfreq::AbstractVector{<:AbstractFloat}, nchroma::Int=12, tuning::Real=0,
                       ctroct::Real=5.0, octwidth::Maybe{Real}=2, base_c::Bool=true)
     T  = eltype(sfreq)
     nf = length(sfreq)
@@ -107,7 +107,7 @@ end
 Chromagram, `nchroma × frames`. `get_freq` returns the pitch-class index
 `0:nchroma-1` (0 = C when `base_c`).
 """
-struct Chroma{F,B,T<:AudioData} <: AbstractSpectrogram
+struct Chroma{F,B,T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     fbank  :: B
     parent :: F
@@ -171,7 +171,7 @@ end
 Tonal centroid features (Harte, Sandler & Gasser 2006; librosa `tonnetz`),
 `6 × frames`: fifths (x, y), minor thirds (x, y), major thirds (x, y).
 """
-struct Tonnetz{F,T<:AudioData} <: AbstractSpectrogram
+struct Tonnetz{F,T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     parent :: F
     info   :: TonnetzSetup
@@ -230,7 +230,7 @@ end
 Octave-based spectral contrast (Jiang et al. 2002; librosa
 `spectral_contrast`), `(nbands + 1) × frames`.
 """
-struct SpectralContrast{F,T<:AudioData} <: AbstractSpectrogram
+struct SpectralContrast{F,T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     parent :: F
     info   :: SpectralContrastSetup
@@ -306,7 +306,7 @@ Coefficients of a polynomial fitted to every frame of a spectrogram against
 frequency (librosa `poly_features`), `(order + 1) × frames`, highest degree
 first.
 """
-struct PolyFeatures{F,T<:AudioData} <: AbstractSpectrogram
+struct PolyFeatures{F,T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     parent :: F
     info   :: PolySetup

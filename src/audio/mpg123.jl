@@ -75,7 +75,7 @@ end
 # decode a whole MP3 as a mono Vector{T}, 16-bit samples scaled by 1/32768.
 # Multi-channel files are averaged to mono (see `to_mono`): the whole Audio911
 # analysing pipeline is intended to work exclusively on mono signals.
-function _read_mp3(::Type{T}, path::String) where {T<:AudioData}
+function _read_mp3(::Type{T}, path::String) where {T<:AbstractFloat}
     mh = _mpg123_new()
     try
         _mpg123_open(mh, path)

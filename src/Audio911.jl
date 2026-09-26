@@ -91,16 +91,6 @@ abstract type AbstractSpectral <: AbstractAudioSpectrum end
 const Maybe{T} = Union{T, Nothing}
 
 """
-    AudioData
-
-Type alias for audio sample data: `Float64` or `Float32`. Every stage of the
-pipeline is parameterised on one of these two types and never promotes one to
-the other.
-"""
-const  AudioData = Union{Float64, Float32}
-export AudioData
-
-"""
     FreqRange
 
 A frequency range in Hz, as a tuple `(min, max)` of integers.
@@ -129,9 +119,9 @@ export FreqRange, get_low, get_hi
 """
     ScaleRange
 
-A range on a perceptual scale (mel, bark, ERB), as a tuple of `AudioData`.
+A range on a perceptual scale (mel, bark, ERB), as a tuple of `AbstractFloat`.
 """
-const  ScaleRange  = Tuple{T, T} where {T<:AudioData}
+const  ScaleRange  = Tuple{T, T} where {T<:AbstractFloat}
 
 get_low(r::ScaleRange) = r[1]
 get_hi(r::ScaleRange)  = r[2]

@@ -144,7 +144,7 @@ end
 # ---------------------------------------------------------------------------- #
 #                                     info                                     #
 # ---------------------------------------------------------------------------- #
-struct CwtSetup{T<:AudioData} <: AbstractSetup
+struct CwtSetup{T<:AbstractFloat} <: AbstractSetup
     sr        :: Int64
     winsize   :: Int64
     winstep   :: Int64
@@ -174,7 +174,7 @@ front-end interface as [`Stft`](@ref) (`get_spec`, `get_freq`, `get_sr`,
 Build one with [`Cwt(frames; kwargs...)`](@ref Cwt(::Frames)) or
 [`Cwt(audio; kwargs...)`](@ref Cwt(::AudioFile)).
 """
-struct Cwt{T<:AudioData} <: AbstractSpectrogram
+struct Cwt{T<:AbstractFloat} <: AbstractSpectrogram
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}
@@ -390,7 +390,7 @@ function Cwt(
     nbands    :: Int64=84,
     bins_per_octave :: Int64=12,
     centre    :: Real=_centre_omega(wavelet),
-) where {T<:AudioData}
+) where {T<:AbstractFloat}
     sr = get_sr(frames)
     x  = get_signal(frames)
     N  = length(x)

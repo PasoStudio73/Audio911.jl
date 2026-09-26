@@ -12,7 +12,7 @@
 # integer FFT bins (rounded centre bins) instead of on continuous frequencies.
 
 function _binfbank(::Type{T}, sr::Int, nfft::Int, nbands::Int, freqrange::FreqRange,
-                   bin_of::Function, weight::Function) where {T<:AudioData}
+                   bin_of::Function, weight::Function) where {T<:AbstractFloat}
     edges = htk(Float64, freqrange, nbands)            # nbands + 2 edges in Hz
     cbin  = [bin_of(f) for f in edges]                # 0-based bin index of every edge
     nf    = _onesided_length(nfft)

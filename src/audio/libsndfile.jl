@@ -49,7 +49,7 @@ _sf_readf(ptr, dest::Matrix{Float64}, n) = ccall(
 # read a whole file as a mono Vector{T}; samples are scaled to [-1, 1).
 # Multi-channel files are averaged to mono (see `to_mono`): the whole Audio911
 # analysing pipeline is intended to work exclusively on mono signals.
-function _read_sndfile(::Type{T}, path::String) where {T<:AudioData}
+function _read_sndfile(::Type{T}, path::String) where {T<:AbstractFloat}
     info = SF_INFO()
     ptr  = _sf_open(path, info)
     try

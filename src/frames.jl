@@ -77,7 +77,7 @@ const AVAIL_WINDOWS = (
 
 # a periodic window of length n is the symmetric window of length n+1 without
 # its last sample; this is MATLAB's `"periodic"` definition for every n.
-function _make_window(::Type{T}, type::Base.Callable, n::Int, periodic::Bool) where {T<:AudioData}
+function _make_window(::Type{T}, type::Base.Callable, n::Int, periodic::Bool) where {T<:AbstractFloat}
     in(type, AVAIL_WINDOWS) || throw(ArgumentError(
         "Window type $(type) not supported. Available windows: $(AVAIL_WINDOWS)"))
     w = periodic ? type(n + 1)[1:n] : type(n)
@@ -179,7 +179,7 @@ through the frames with a single buffer ([`frame!`](@ref)) and
 
 Build one with [`Frames(audio; kwargs...)`](@ref Frames(::AudioFile)).
 """
-struct Frames{T<:AudioData} <: AbstractFrame
+struct Frames{T<:AbstractFloat} <: AbstractFrame
     signal :: Vector{T}
     starts :: StepRange{Int64,Int64}
     window :: Vector{T}
@@ -345,9 +345,9 @@ end
 #                                    helpers                                   #
 # ---------------------------------------------------------------------------- #
 # mono, concrete vector of type T (no copy when already so)
-_to_mono(x::Vector{T}) where {T<:AudioData} = x
-_to_mono(x::AbstractVector{T}) where {T<:AudioData} = Vector{T}(x)
-function _to_mono(x::AbstractMatrix{T}) where {T<:AudioData}
+_to_mono(x::Vector{T}) where {T<:AbstractFloat} = x
+_to_mono(x::AbstractVector{T}) where {T<:AbstractFloat} = Vector{T}(x)
+function _to_mono(x::AbstractMatrix{T}) where {T<:AbstractFloat}
     size(x, 2) == 1 && return _to_mono(vec(x))
     return vec(mean(x, dims=2))
 end

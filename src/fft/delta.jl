@@ -18,7 +18,7 @@ stored as `coeffs × frames`. Apply it twice for delta-delta.
 
 See [`Delta(x; delta_length)`](@ref Delta(::AbstractAudioSpectrum)).
 """
-struct Delta{F,T<:AudioData} <: AbstractDelta
+struct Delta{F,T<:AbstractFloat} <: AbstractDelta
     spec   :: Matrix{T}
     parent :: F
     info   :: DeltaSetup
@@ -74,7 +74,7 @@ function Delta(x::AbstractAudioSpectrum; delta_length::Int64=9, source::Symbol=:
     Delta{typeof(x),eltype(x)}(spec, x, DeltaSetup(get_sr(x), delta_length, source))
 end
 
-function Delta(x::AbstractMatrix{T}; sr::Int64, delta_length::Int64=9, source::Symbol=:standard) where {T<:AudioData}
+function Delta(x::AbstractMatrix{T}; sr::Int64, delta_length::Int64=9, source::Symbol=:standard) where {T<:AbstractFloat}
     spec = _delta_matrix(permutedims(x), delta_length, source)
     Delta{Nothing,T}(spec, nothing, DeltaSetup(sr, delta_length, source))
 end
