@@ -7,7 +7,7 @@ test_file(filename) = joinpath(test_files_dir(), filename)
 wav_file = test_file("test.wav")
 mp3_file = test_file("test.mp3")
 
-audiofile = Audio911.load(wav_file; mono=true, sr=8000, norm=false)
+audiofile = Audio911.load(wav_file; sr=8000, norm=false)
 
 @test_nowarn Stft(audiofile)
 
@@ -26,3 +26,6 @@ frames = Frames(audiofile; winsize=512, winstep=256, type=hamming, periodic=true
 @test_nowarn Stft(frames; spectrum=magnitude)
 
 stft = Stft(frames; spectrum=power)
+
+@btime Stft(audiofile);
+# 69.588 μs (30 allocations: 76.24 KiB)

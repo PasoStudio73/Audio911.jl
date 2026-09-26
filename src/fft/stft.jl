@@ -2,15 +2,15 @@
 #                                    info                                      #
 # ---------------------------------------------------------------------------- #
 struct StftSetup{T<:AbstractFloat} <: AbstractSetup
-    sr       :: Int64
-    nfft     :: Int64
-    winsize  :: Int64
-    winstep  :: Int64
-    overlap  :: Int64
-    spectrum :: Base.Callable
-    window   :: Vector{T}
-    offset   :: Int64
-    scale    :: Float64
+    sr::Int
+    nfft::Int
+    winsize::Int
+    winstep::Int
+    overlap::Int
+    spectrum::Base.Callable
+    window::Vector{T}
+    offset::Int
+    scale::T
 end
 
 # ---------------------------------------------------------------------------- #
@@ -29,11 +29,11 @@ Build one with [`Stft(frames; nfft, spectrum)`](@ref Stft(::Frames)) or
 [`Stft(audio; kwargs...)`](@ref Stft(::AudioFile)).
 """
 struct Stft{T<:AbstractFloat} <: AbstractSpectrogram
-    spec   :: Matrix{T}
-    freq   :: StepRangeLen{T}
-    frames :: Frames{T}
-    info   :: StftSetup{T}
-    cplx   :: Maybe{Matrix{Complex{T}}}
+    spec::Matrix{T}
+    freq::StepRangeLen{T}
+    frames::Frames{T}
+    info::StftSetup{T}
+    cplx::Maybe{Matrix{Complex{T}}}
 end
 Stft{T}(spec, freq, frames, info) where {T<:AbstractFloat} = Stft{T}(spec, freq, frames, info, nothing)
 
@@ -109,8 +109,8 @@ The frames the transform was computed from.
 # exact bin arithmetic for the FFT grid (MATLAB parity)
 function _freq_indices(s::Stft, freqrange::FreqRange)
     nfft, sr = get_nfft(s), get_sr(s)
-    bin_low  = cld(get_low(freqrange) * nfft, sr) + 1
-    bin_high = fld(get_hi(freqrange)  * nfft, sr) + 1
+    bin_low = cld(get_low(freqrange) * nfft, sr) + 1
+    bin_high = fld(get_hi(freqrange) * nfft, sr) + 1
     bin_high = min(bin_high, get_nbins(s))
     bin_low ≤ bin_high || throw(ArgumentError("No frequency bins inside freqrange = $freqrange."))
     return bin_low:bin_high
@@ -157,7 +157,7 @@ magnitude(f) = abs.(f)
 #------------------------------------------------------------------------------#
 #                                  utilities                                   #
 #------------------------------------------------------------------------------#
-_onesided_length(nfft::Int64) = nfft ÷ 2 + 1
+_onesided_length(nfft::Int) = nfft ÷ 2 + 1
 
 # partition 1:n into at most nthreads contiguous chunks
 function _chunks(n::Int)
@@ -232,24 +232,20 @@ stft   = Stft(frames; spectrum=magnitude)
 See also [`Frames`](@ref), [`power`](@ref), [`magnitude`](@ref), [`Cwt`](@ref).
 """
 function Stft(
-    frames   :: Frames{T};
-    nfft     :: Int64=get_winsize(frames),
-    spectrum :: Base.Callable=power,
-    scale    :: Real=1,
-    keep_complex :: Bool=false,
+    frames::Frames{T};
+    nfft::Int=get_winsize(frames),
+    spectrum::Base.Callable=power,
+    scale::Real=1,
+    keep_complex::Bool=false,
 ) where {T<:AbstractFloat}
-    sr      = get_sr(frames)
+    sr = get_sr(frames)
     winsize = get_winsize(frames)
     overlap = get_overlap(frames)
 
-    (0 ≤ overlap < winsize) ||
-        throw(ArgumentError("Overlap length must be < window length. " *
-                "Got overlap = $overlap, window length = $winsize"))
-    nfft < winsize &&
-        throw(ArgumentError("nfft must be ≥ window length. " *
-                "Got nfft = $nfft, window length = $winsize"))
-    spectrum in (power, magnitude) ||
-        throw(ArgumentError("spectrum must be `power` or `magnitude`, got $spectrum"))
+    nfft < winsize && throw(ArgumentError("nfft must be ≥ window length. " *
+        "Got nfft = $nfft, window length = $winsize"))
+    spectrum in (power, magnitude) || throw(ArgumentError("spectrum must be `power` " *
+        "or `magnitude`, got $spectrum"))
 
     cplx = nothing
     if keep_complex
@@ -263,8 +259,17 @@ function Stft(
     scale == 1 || (spec .*= T(scale))
 
     freq = (0:size(spec, 1)-1) .* (T(sr) / T(nfft))
-    info = StftSetup{T}(sr, nfft, winsize, get_step(frames), overlap, spectrum,
-                        get_window(frames), get_offset(frames), Float64(scale))
+    info = StftSetup{T}(
+        sr,
+        nfft,
+        winsize,
+        get_step(frames),
+        overlap,
+        spectrum,
+        get_window(frames),
+        get_offset(frames),
+        T(scale)
+    )
 
     return Stft{T}(spec, freq, frames, info, cplx)
 end
@@ -297,21 +302,34 @@ stft = Stft(audio; winsize=1024, winstep=512, type=hamming, nfft=2048, spectrum=
 ```
 """
 function Stft(
-    audio      :: AbstractVecOrMat{<:Real},
-    sr         :: Int64;
-    winsize    :: Int64=sr ≤ 8000 ? 256 : 512,
-    winstep    :: Int64=winsize ÷ 2,
-    win        :: Maybe{NamedTuple}=nothing,
-    type       :: Base.Callable=hanning,
-    periodic   :: Bool=true,
-    center     :: Bool=false,
-    pad_mode   :: Symbol=:constant,
-    preemph    :: Real=0,
-    dc_removal :: Bool=false,
-    pad_end    :: Bool=false,
+    audio::Vector{T},
+    sr::Int;
+    winsize::Int=sr ≤ 8000 ? 256 : 512,
+    winstep::Int=winsize ÷ 2,
+    win::Maybe{NamedTuple}=nothing,
+    type::Base.Callable=hanning,
+    periodic::Bool=true,
+    center::Bool=false,
+    pad_mode::Symbol=:constant,
+    preemph::Real=0,
+    dc_removal::Bool=false,
+    pad_end::Bool=false,
     kwargs...
-)
-    frames = Frames(audio, sr; winsize, winstep, win, type, periodic, center, pad_mode, preemph, dc_removal, pad_end)
+) where {T<:AbstractFloat}
+    frames = Frames(
+        audio,
+        sr;
+        winsize,
+        winstep,
+        win,
+        type,
+        periodic,
+        center,
+        pad_mode,
+        preemph,
+        dc_removal,
+        pad_end
+    )
     return Stft(frames; kwargs...)
 end
 
