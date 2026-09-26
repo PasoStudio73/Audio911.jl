@@ -4,12 +4,12 @@
 # The bohman, kaiser and gauss windows follow audioFlux's
 # dsp/flux_window.c (MIT licence, Copyright (c) 2023 libAudioFlux).
 """
-    povey(n::Integer) -> Vector{Float64}
+    povey(n::Int) -> Vector{Float64}
 
 Kaldi's default analysis window, a Hann window raised to the power 0.85:
 `(0.5 - 0.5cos(2πk/(n-1)))^0.85`. It is symmetric, like Kaldi builds it.
 """
-povey(n::Integer) = [(0.5 - 0.5 * cospi(2k / (n - 1)))^0.85 for k in 0:n-1]
+povey(n::Int) = [(0.5 - 0.5 * cospi(2k / (n - 1)))^0.85 for k in 0:n-1]
 
 """
     triangular
@@ -18,7 +18,7 @@ Default filter style of [`auditory_fbank`](@ref): a triangle rising from the
 previous centre to the band centre and falling to the next one (audioFlux
 `SLANEY` style, MATLAB's `designAuditoryFilterBank`).
 """
-triangular(n::Integer) = bartlett(n)
+triangular(n::Int) = bartlett(n)
 
 """
     etsi
@@ -28,7 +28,7 @@ the band edges, `(j − left)/(centre − left)` rising and
 `(right − j)/(right − centre)` falling. It is not the ETSI ES 201 108
 filterbank (that one, with its `+1` offsets, is [`etsi_fbank`](@ref)).
 """
-etsi(n::Integer) = triang(n)
+etsi(n::Int) = triang(n)
 
 """
     point
@@ -36,7 +36,7 @@ etsi(n::Integer) = triang(n)
 Filter style keeping only the bin nearest to each band centre (audioFlux
 `POINT`). Pass as `style=point`.
 """
-point(n::Integer) = [i == (n + 1) ÷ 2 ? 1.0 : 0.0 for i in 1:n]
+point(n::Int) = [i == (n + 1) ÷ 2 ? 1.0 : 0.0 for i in 1:n]
 
 """
     bohman(n)
@@ -44,7 +44,7 @@ point(n::Integer) = [i == (n + 1) ÷ 2 ? 1.0 : 0.0 for i in 1:n]
 Bohman window of length `n` (symmetric), also an [`auditory_fbank`](@ref)
 filter style (`style=bohman`).
 """
-function bohman(n::Integer)
+function bohman(n::Int)
     n == 1 && return [1.0]
     x = LinRange(-1.0, 1.0, n)
     return [(1 - abs(v)) * cospi(abs(v)) + sinpi(abs(v)) / π for v in x]
@@ -57,7 +57,7 @@ Kaiser window of length `n` with shape parameter `β` (audioFlux's default
 `β=5`), symmetric; also a filter style (`style=kaiser`). `DSP.kaiser(n, α)`
 takes `α = β/π` instead.
 """
-kaiser(n::Integer; β::Real=5) = DSP.kaiser(n, β / π)
+kaiser(n::Int; β::Real=5) = DSP.kaiser(n, β / π)
 
 """
     gauss(n; α=2.5)
@@ -66,7 +66,7 @@ Gaussian window `exp(-½ (α k / ((n-1)/2))²)` for `k = -(n-1)/2 … (n-1)/2`
 (MATLAB `gausswin`, audioFlux's default `α=2.5`); also a filter style
 (`style=gauss`).
 """
-gauss(n::Integer; α::Real=2.5) = n == 1 ? [1.0] :
+gauss(n::Int; α::Real=2.5) = n == 1 ? [1.0] :
     [exp(-0.5 * (α * (k - (n - 1) / 2) / ((n - 1) / 2))^2) for k in 0:n-1]
 
 # availables window functions from package DSP, plus povey and the audioFlux ones
@@ -77,7 +77,12 @@ const AVAIL_WINDOWS = (
 
 # a periodic window of length n is the symmetric window of length n+1 without
 # its last sample; this is MATLAB's `"periodic"` definition for every n.
-function _make_window(::Type{T}, type::Base.Callable, n::Int, periodic::Bool) where {T<:AbstractFloat}
+function _make_window(
+    ::Type{T},
+    type::Base.Callable,
+    n::Int,
+    periodic::Bool
+) where {T<:AbstractFloat}
     in(type, AVAIL_WINDOWS) || throw(ArgumentError(
         "Window type $(type) not supported. Available windows: $(AVAIL_WINDOWS)"))
     w = periodic ? type(n + 1)[1:n] : type(n)
@@ -93,7 +98,7 @@ Framing parameters as a named tuple, accepted by the `win` keyword of
 `Stft(audio; winsize=512, winstep=256)`. Kept for compatibility with the
 DataTreatments-based API.
 """
-movingwindow(; winsize::Int64, winstep::Int64=winsize ÷ 2) = (; winsize, winstep)
+movingwindow(; winsize::Int, winstep::Int=winsize ÷ 2) = (; winsize, winstep)
 
 # resolve the `win` keyword against explicit winsize/winstep
 function _winparams(win, winsize, winstep)
@@ -107,7 +112,7 @@ end
 #                                 pre-emphasis                                 #
 # ---------------------------------------------------------------------------- #
 """
-    preemphasis(x::AbstractVector; coef=0.97, zi=x[1]) -> Vector
+    preemphasis(x::Vector; coef=0.97, zi=x[1]) -> Vector
 
 First-order high-pass pre-emphasis `y[n] = x[n] - coef * x[n-1]`.
 
@@ -121,7 +126,7 @@ with its `preemph` keyword; this function is the signal-level (librosa) form.
 
 See also [`deemphasis`](@ref).
 """
-function preemphasis(x::AbstractVector{T}; coef::Real=0.97, zi::Real=x[1]) where {T<:Real}
+function preemphasis(x::Vector{T}; coef::Real=0.97, zi::Real=x[1]) where {T<:Real}
     y = similar(x, float(T))
     k = float(T)(coef)
     prev = float(T)(zi)
@@ -133,12 +138,12 @@ function preemphasis(x::AbstractVector{T}; coef::Real=0.97, zi::Real=x[1]) where
 end
 
 """
-    deemphasis(y::AbstractVector; coef=0.97, zi=0) -> Vector
+    deemphasis(y::Vector; coef=0.97, zi=0) -> Vector
 
 Inverse of [`preemphasis`](@ref): `x[n] = y[n] + coef * x[n-1]`, with `zi` the
 value of `x[0]`.
 """
-function deemphasis(y::AbstractVector{T}; coef::Real=0.97, zi::Real=0) where {T<:Real}
+function deemphasis(y::Vector{T}; coef::Real=0.97, zi::Real=0) where {T<:Real}
     x = similar(y, float(T))
     k = float(T)(coef)
     prev = float(T)(zi)
@@ -153,17 +158,17 @@ end
 #                                     info                                     #
 # ---------------------------------------------------------------------------- #
 struct FramesSetup <: AbstractSetup
-    sr         :: Int64
-    winsize    :: Int64
-    winstep    :: Int64
-    type       :: Base.Callable
-    periodic   :: Bool
-    center     :: Bool
-    pad_mode   :: Symbol
-    preemph    :: Float64
-    dc_removal :: Bool
-    pad_end    :: Bool
-    offset     :: Int64
+    sr::Int
+    winsize::Int
+    winstep::Int
+    type::Base.Callable
+    periodic::Bool
+    center::Bool
+    pad_mode::Symbol
+    preemph::Float64
+    dc_removal::Bool
+    pad_end::Bool
+    offset::Int
 end
 
 # ---------------------------------------------------------------------------- #
@@ -181,7 +186,7 @@ Build one with [`Frames(audio; kwargs...)`](@ref Frames(::AudioFile)).
 """
 struct Frames{T<:AbstractFloat} <: AbstractFrame
     signal :: Vector{T}
-    starts :: StepRange{Int64,Int64}
+    starts :: StepRange{Int,Int}
     window :: Vector{T}
     info   :: FramesSetup
 end
@@ -197,7 +202,7 @@ Base.eltype(::Frames{T}) where T = T
 
 Frame length in samples.
 """
-get_size(f::Frames)    = f.info.winsize
+get_size(f::Frames) = f.info.winsize
 
 """
     get_winsize(x) -> Int
@@ -213,7 +218,7 @@ get_winsize(f::Frames) = f.info.winsize
 Hop between consecutive frames in samples, for frames and every stage built
 from them.
 """
-get_step(f::Frames)    = f.info.winstep
+get_step(f::Frames) = f.info.winstep
 
 """
     get_overlap(f::Frames) -> Int
@@ -221,9 +226,9 @@ get_step(f::Frames)    = f.info.winstep
 Overlap between consecutive frames in samples (`winsize - winstep`).
 """
 get_overlap(f::Frames) = get_size(f) - get_step(f)
-get_sr(f::Frames)      = f.info.sr
-get_setup(f::Frames)   = f.info
-get_offset(f::Frames)  = f.info.offset
+get_sr(f::Frames) = f.info.sr
+get_setup(f::Frames) = f.info
+get_offset(f::Frames) = f.info.offset
 get_nframes(f::Frames) = length(f)
 
 """
@@ -231,14 +236,14 @@ get_nframes(f::Frames) = length(f)
 
 The analysis window, already converted to the element type of the frames.
 """
-get_window(f::Frames)  = f.window
+get_window(f::Frames) = f.window
 
 """
     get_signal(f::Frames) -> Vector
 
 The mono signal the frames were cut from (padded when `center=true`).
 """
-get_signal(f::Frames)  = f.signal
+get_signal(f::Frames) = f.signal
 
 """
     frame!(buf, f::Frames, i) -> buf
@@ -246,7 +251,7 @@ get_signal(f::Frames)  = f.signal
 Write frame `i` (raw, after optional DC removal and pre-emphasis, before
 windowing) into `buf`, which must have length `get_size(f)`.
 """
-@inline function frame!(buf::AbstractVector{T}, f::Frames{T}, i::Int) where T
+@inline function frame!(buf::SubArray{T}, f::Frames{T}, i::Int) where T
     n = f.info.winsize
     s = f.starts[i]
     x = f.signal
@@ -346,7 +351,7 @@ end
 # ---------------------------------------------------------------------------- #
 # mono, concrete vector of type T (no copy when already so)
 _to_mono(x::Vector{T}) where {T<:AbstractFloat} = x
-_to_mono(x::AbstractVector{T}) where {T<:AbstractFloat} = Vector{T}(x)
+
 function _to_mono(x::AbstractMatrix{T}) where {T<:AbstractFloat}
     size(x, 2) == 1 && return _to_mono(vec(x))
     return vec(mean(x, dims=2))
@@ -424,9 +429,9 @@ frames = Frames(audio; winsize=400, winstep=160, type=povey, periodic=false,
 """
 function Frames(
     audio::AbstractVecOrMat{<:Real},
-    sr::Int64;
-    winsize::Int64=sr ≤ 8000 ? 256 : 512,
-    winstep::Int64=winsize ÷ 2,
+    sr::Int;
+    winsize::Int=sr ≤ 8000 ? 256 : 512,
+    winstep::Int=winsize ÷ 2,
     win::Maybe{NamedTuple}=nothing,
     type::Base.Callable=hanning,
     periodic::Bool=true,
