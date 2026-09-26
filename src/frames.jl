@@ -423,18 +423,18 @@ frames = Frames(audio; winsize=400, winstep=160, type=povey, periodic=false,
 ```
 """
 function Frames(
-    audio      :: AbstractVecOrMat{<:Real},
-    sr         :: Int64;
-    winsize    :: Int64=sr ≤ 8000 ? 256 : 512,
-    winstep    :: Int64=winsize ÷ 2,
-    win        :: Maybe{NamedTuple}=nothing,
-    type       :: Base.Callable=hanning,
-    periodic   :: Bool=true,
-    center     :: Bool=false,
-    pad_mode   :: Symbol=:constant,
-    preemph    :: Real=0,
-    dc_removal :: Bool=false,
-    pad_end    :: Bool=false,
+    audio::AbstractVecOrMat{<:Real},
+    sr::Int64;
+    winsize::Int64=sr ≤ 8000 ? 256 : 512,
+    winstep::Int64=winsize ÷ 2,
+    win::Maybe{NamedTuple}=nothing,
+    type::Base.Callable=hanning,
+    periodic::Bool=true,
+    center::Bool=false,
+    pad_mode::Symbol=:constant,
+    preemph::Real=0,
+    dc_removal::Bool=false,
+    pad_end::Bool=false,
 )
     winsize, winstep = _winparams(win, winsize, winstep)
     x = _to_mono(audio)

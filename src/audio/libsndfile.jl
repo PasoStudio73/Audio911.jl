@@ -58,29 +58,32 @@ function _read_sndfile(::Type{T}, path::String) where {T<:AudioData}
         @inbounds for c in 1:nch, i in 1:got
             data[i, c] = buf[c, i]
         end
-        return data, Int(info.samplerate)
+        # after this conversion we continue ONLY with mono files
+        # the whole Audio911 analysing pipeline is intended to work
+        # exclusively on mono signals
+        size(data, 2) > 1 && (data = to_mono(data))
+        return vec(data), Int(info.samplerate)
     finally
         _sf_close(ptr)
     end
 end
 
-_sf_writef(ptr, src::Matrix{Float32}, n) = ccall(
-    (:sf_writef_float, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float32}, Int), ptr, src, n)
-_sf_writef(ptr, src::Matrix{Float64}, n) = ccall(
-    (:sf_writef_double, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float64}, Int), ptr, src, n)
+_sf_writef(ptr, src::Vector{Float32}) = ccall(
+    (:sf_writef_float, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float32}, Int), ptr, src, length(src))
+_sf_writef(ptr, src::Vector{Float64}) = ccall(
+    (:sf_writef_double, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float64}, Int), ptr, src, length(src))
 
 # write a (frames × channels) signal in [-1, 1] to a 16-bit PCM WAV file at sr Hz
-function _write_sndfile(path::String, data::Matrix{T}, sr::Int) where {T<:AbstractFloat}
-    info = SF_INFO(0, sr, size(data, 2), SF_FORMAT_WAV | SF_FORMAT_PCM_16, 0, 0)
+function _write_sndfile(path::String, data::Vector{T}, sr::Int) where {T<:AbstractFloat}
+    info = SF_INFO(0, sr, 1, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 0, 0)
     ptr = ccall((:sf_open, libsndfile), Ptr{Cvoid},
         (Cstring, Int32, Ref{SF_INFO}), path, SFM_WRITE, info)
     ptr === C_NULL && error(
         "libsndfile could not open '$path' for writing: $(_sf_strerror(C_NULL))")
     try
         # libsndfile expects interleaved frames: (channels × frames) column-major
-        buf = Matrix{T}(permutedims(data))
-        n = Int(_sf_writef(ptr, buf, size(data, 1)))
-        n === size(data, 1) || error("libsndfile: wrote $n of $(size(data, 1)) frames")
+        n = Int(_sf_writef(ptr, data))
+        n === length(data) || error("libsndfile: wrote $n of $(size(data, 1)) frames")
     finally
         _sf_close(ptr)
     end

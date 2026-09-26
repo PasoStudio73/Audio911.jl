@@ -96,7 +96,11 @@ function _read_mp3(::Type{T}, path::String) where {T<:AudioData}
         @inbounds for c in 1:nch, i in 1:nfr
             data[i, c] = T(acc[(i - 1) * nch + c]) * scale
         end
-        return data, rate
+        # after this conversion we continue ONLY with mono files
+        # the whole Audio911 analysing pipeline is intended to work
+        # exclusively on mono signals
+        size(data, 2) > 1 && (data = to_mono(data))
+        return vec(data), rate
     finally
         _mpg123_delete(mh)
     end

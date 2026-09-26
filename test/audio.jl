@@ -34,7 +34,6 @@ ogg_file = test_file("test.ogg")
     @test Audio911.get_data(audiofile) isa Array{Float64}
     @test Audio911.get_sr(audiofile) == 16000
     @test Audio911.get_origin_sr(audiofile) == 16000
-    @test Audio911.get_nchannels(audiofile) == 1
     @test Audio911.is_norm(audiofile) == false
     @test get_path(audiofile) == wav_file
     @test get_duration(audiofile) ≈ length(audiofile) / 16000
@@ -43,34 +42,29 @@ ogg_file = test_file("test.ogg")
     @test Audio911.get_data(audiofile) isa Array{Float32}
     @test Audio911.get_sr(audiofile) == 44100
     @test Audio911.get_origin_sr(audiofile) == 44100
-    @test Audio911.get_nchannels(audiofile) == 1
     @test Audio911.is_norm(audiofile) == true
     @test maximum(abs, get_data(audiofile)) ≈ 1
 
-    audiofile = Audio911.load(mp3_file; mono=false)
+    audiofile = Audio911.load(mp3_file)
     @test Audio911.get_data(audiofile) isa Array{Float32}
     @test Audio911.get_sr(audiofile) == 44100
     @test Audio911.get_origin_sr(audiofile) == 44100
-    @test Audio911.get_nchannels(audiofile) == 2
     @test Audio911.is_norm(audiofile) == false
 
     audiofile = Audio911.load(wav_file; sr=48000)
     @test Audio911.get_data(audiofile) isa Array{Float32}
     @test Audio911.get_sr(audiofile) == 48000
     @test Audio911.get_origin_sr(audiofile) == 16000
-    @test Audio911.get_nchannels(audiofile) == 1
     @test Audio911.is_norm(audiofile) == false
 
-    audiofile = Audio911.load(mp3_file; mono=false, sr=8000)
-    @test Audio911.get_nchannels(audiofile) == 2
+    audiofile = Audio911.load(mp3_file, sr=8000)
     @test eltype(audiofile) == Float32
     @test length(audiofile) == 44513
 
     # lossless and lossy containers of the same 44.1 kHz recording
-    flac = Audio911.load(flac_file; format=Float64, mono=false)
-    ogg  = Audio911.load(ogg_file; mono=false)
+    flac = Audio911.load(flac_file; format=Float64)
+    ogg  = Audio911.load(ogg_file)
     @test get_sr(flac) == 44100 && get_sr(ogg) == 44100
-    @test get_nchannels(flac) == get_nchannels(ogg)
     @test eltype(flac) == Float64 && eltype(ogg) == Float32
     @test length(ogg) > 44100 && length(flac) > 44100
     @test all(isfinite, get_data(ogg))
@@ -99,22 +93,23 @@ end
 # ---------------------------------------------------------------------------------------- #
 @testset "in-memory AudioFile" begin
     x = rand(Float32, 8000, 2) .- 0.5f0
-    a = AudioFile(x, 8000)
-    @test get_nchannels(a) == 1 && length(a) == 8000 && get_sr(a) == 8000
+    data = Audio911._to_mono(x)
+    a = AudioFile(data, 8000)
+    @test length(a) == 8000 && get_sr(a) == 8000
     @test get_data(a) ≈ sum(x, dims=2) ./ 2
     @test get_path(a) == ""
-    b = AudioFile(x, 8000; mono=false, norm=true, new_sr=4000, format=Float64)
-    @test get_nchannels(b) == 2 && get_sr(b) == 4000 && get_origin_sr(b) == 8000
+    b = AudioFile(data, 8000; norm=true, new_sr=4000, format=Float64)
+    @test get_sr(b) == 4000 && get_origin_sr(b) == 8000
     @test eltype(b) == Float64 && is_norm(b)
     @test maximum(abs, get_data(b)) ≈ 1
     c = AudioFile(vec(x[:, 1]), 8000)
-    @test size(get_data(c)) == (8000, 1)
+    @test get_data(c) isa Vector{Float32}
     # signal utilities
-    @test to_mono(x) ≈ sum(x, dims=2) ./ 2
+    @test Audio911.to_mono(x) ≈ sum(x, dims=2) ./ 2
     @test normalize_peak([0.5, -0.25]) == [1.0, -0.5]
     @test normalize_peak(zeros(3)) == zeros(3)
-    @test size(Audio911.resample(x, 8000, 16000), 1) == 16000
-    @test Audio911.resample(x, 8000, 8000) === x
+    @test length(Audio911.resample(data, 8000, 16000)) == 16000
+    @test Audio911.resample(data, 8000, 8000) === data
     # the whole pipeline accepts in-memory audio
     @test Stft(a) isa Stft
     @test Frames(get_data(a), 8000) isa Frames
@@ -141,10 +136,11 @@ matlab_file(filename) = joinpath(matlab_files_dir(), filename)
     mat_mp3 = MAT.matread(matfile_mp3)
     mp3_data_mat = mat_mp3["audio_mp3"]
 
-    a911_mp3 = Audio911.load(mp3_file, mono=false)
+    a911_mp3 = Audio911.load(mp3_file)
     mp3_data_a911 = Audio911.get_data(a911_mp3)
+    mp3_data_mat_mono = sum(mp3_data_mat, dims=2) ./ 2
 
-    @test isapprox(mp3_data_mat, mp3_data_a911)
+    @test isapprox(mp3_data_mat_mono, mp3_data_a911)
 end
 
 # ---------------------------------------------------------------------------------------- #
@@ -174,13 +170,11 @@ end
         # round-trip a matrix
         out = joinpath(dir, "out.wav")
         x = 0.5f0 .* sin.(2π * 440 .* (0:7999) ./ 8000)
-        x = hcat(x, 0.25f0 .* x)  # stereo
         @test Audio911.save(out, x, 8000) == out
         @test isfile(out)
         @test Audio911.detect_format(out) === Wav
-        a = Audio911.load(out; mono=false)
+        a = Audio911.load(out)
         @test get_sr(a) == 8000
-        @test get_nchannels(a) == 2
         @test length(a) == 8000
         @test maximum(abs.(get_data(a) .- x)) ≤ q
 
@@ -189,7 +183,7 @@ end
         v = 0.9 .* sin.(2π * 100 .* (0:999) ./ 4000)
         Audio911.save(out_vec, v, 4000)
         b = Audio911.load(out_vec; format=Float64)
-        @test get_nchannels(b) == 1 && length(b) == 1000 && get_sr(b) == 4000
+        @test length(b) == 1000 && get_sr(b) == 4000
         @test maximum(abs.(vec(get_data(b)) .- v)) ≤ q
 
         # save an AudioFile directly
@@ -211,3 +205,5 @@ end
 
 @btime Audio911.load(wav_file);
 # 45.211 μs (42 allocations: 403.84 KiB)
+# 28.487 μs (37 allocations: 269.70 KiB)
+# 34.320 μs (38 allocations: 269.75 KiB)
