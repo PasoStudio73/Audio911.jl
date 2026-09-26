@@ -1,6 +1,6 @@
-# ---------------------------------------------------------------------------- #
-#                                   windows                                    #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                         windows                                          #
+# ---------------------------------------------------------------------------------------- #
 # The bohman, kaiser and gauss windows follow audioFlux's
 # dsp/flux_window.c (MIT licence, Copyright (c) 2023 libAudioFlux).
 """
@@ -108,9 +108,9 @@ function _winparams(win, winsize, winstep)
     return ws, st
 end
 
-# ---------------------------------------------------------------------------- #
-#                                 pre-emphasis                                 #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                       pre-emphasis                                       #
+# ---------------------------------------------------------------------------------------- #
 """
     preemphasis(x::Vector; coef=0.97, zi=x[1]) -> Vector
 
@@ -154,9 +154,9 @@ function deemphasis(y::Vector{T}; coef::Real=0.97, zi::Real=0) where {T<:Real}
     return x
 end
 
-# ---------------------------------------------------------------------------- #
-#                                     info                                     #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                           info                                           #
+# ---------------------------------------------------------------------------------------- #
 struct FramesSetup <: AbstractSetup
     sr::Int
     winsize::Int
@@ -171,9 +171,9 @@ struct FramesSetup <: AbstractSetup
     offset::Int
 end
 
-# ---------------------------------------------------------------------------- #
-#                                    Frames                                    #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                          Frames                                          #
+# ---------------------------------------------------------------------------------------- #
 """
     Frames{T} <: AbstractFrame
 
@@ -185,15 +185,15 @@ through the frames with a single buffer ([`frame!`](@ref)) and
 Build one with [`Frames(audio; kwargs...)`](@ref Frames(::AudioFile)).
 """
 struct Frames{T<:AbstractFloat} <: AbstractFrame
-    signal :: Vector{T}
-    starts :: StepRange{Int,Int}
-    window :: Vector{T}
-    info   :: FramesSetup
+    signal::Vector{T}
+    starts::StepRange{Int,Int}
+    window::Vector{T}
+    info::FramesSetup
 end
 
-# ---------------------------------------------------------------------------- #
-#                                    methods                                   #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                          methods                                         #
+# ---------------------------------------------------------------------------------------- #
 Base.length(f::Frames) = length(f.starts)
 Base.eltype(::Frames{T}) where T = T
 
@@ -302,7 +302,7 @@ end
 Raw energy `sum(x.^2)` of every frame, computed after DC removal and before
 pre-emphasis and windowing (HTK `RAWENERGY`, Kaldi `raw_energy`).
 """
-function get_energy(f::Frames{T}) where T
+function get_energy(f::Frames{T}) where {T<:AbstractFloat}
     n = f.info.winsize
     x = f.signal
     e = Vector{T}(undef, length(f))
@@ -310,32 +310,39 @@ function get_energy(f::Frames{T}) where T
         acc = zero(T)
         if f.info.dc_removal
             μ = zero(T)
-         for j in s:s+n-1; μ += x[j]; end
+            for j in s:s+n-1
+                μ += x[j]
+            end
             μ /= n
-         for j in s:s+n-1; acc += (x[j] - μ)^2; end
+            for j in s:s+n-1
+                acc += (x[j] - μ)^2
+            end
         else
-         for j in s:s+n-1; acc += x[j]^2; end
+            for j in s:s+n-1
+                acc += x[j]^2
+            end
         end
         e[i] = acc
     end
     return e
 end
 
-# ---------------------------------------------------------------------------- #
-#                                   base.show                                  #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                         base.show                                        #
+# ---------------------------------------------------------------------------------------- #
 function Base.show(io::IO, ::MIME"text/plain", f::Frames{T}) where T
-    n_frames   = length(f)
+    n_frames = length(f)
     frame_size = get_size(f)
-    step_size  = get_step(f)
-    overlap    = get_overlap(f)
+    step_size = get_step(f)
+    overlap = get_overlap(f)
 
     println(io, "Frames{$T}")
     println(io, "  Sample rate: $(f.info.sr) Hz")
     println(io, "  Frames:      $n_frames")
     println(io, "  Frame size:  $frame_size samples")
     println(io, "  Step:        $step_size samples")
-    println(io, "  Overlap:     $overlap samples ($(round(100 * overlap / frame_size, digits=1))%)")
+    println(io, "  Overlap:     $overlap samples " *
+        "($(round(100 * overlap / frame_size, digits=1))%)")
     println(io, "  Window:      $(f.info.type)$(f.info.periodic ? " (periodic)" : "")")
     f.info.center && println(io, "  Centered:    $(f.info.pad_mode) padding")
     iszero(f.info.preemph) || println(io, "  Pre-emphasis: $(f.info.preemph)")
@@ -346,18 +353,9 @@ function Base.show(io::IO, f::Frames{T}) where T
     print(io, "Frames{$T}($(length(f)) frames × $(get_size(f)) samples)")
 end
 
-# ---------------------------------------------------------------------------- #
-#                                    helpers                                   #
-# ---------------------------------------------------------------------------- #
-# mono, concrete vector of type T (no copy when already so)
-_to_mono(x::Vector{T}) where {T<:AbstractFloat} = x
-
-function _to_mono(x::AbstractMatrix{T}) where {T<:AbstractFloat}
-    size(x, 2) == 1 && return _to_mono(vec(x))
-    return vec(mean(x, dims=2))
-end
-_to_mono(x::AbstractVecOrMat{<:Real}) = _to_mono(Float32.(x))
-
+# ---------------------------------------------------------------------------------------- #
+#                                          helpers                                         #
+# ---------------------------------------------------------------------------------------- #
 function _pad_center(x::Vector{T}, pad::Int, mode::Symbol) where T
     n = length(x)
     y = Vector{T}(undef, n + 2pad)
@@ -380,9 +378,9 @@ function _pad_center(x::Vector{T}, pad::Int, mode::Symbol) where T
     return y
 end
 
-# ---------------------------------------------------------------------------- #
-#                                    frames                                    #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                          frames                                          #
+# ---------------------------------------------------------------------------------------- #
 """
     Frames(audio::AudioFile; kwargs...) -> Frames
     Frames(x::AbstractVecOrMat, sr::Int; kwargs...) -> Frames
@@ -428,7 +426,7 @@ frames = Frames(audio; winsize=400, winstep=160, type=povey, periodic=false,
 ```
 """
 function Frames(
-    audio::AbstractVecOrMat{<:Real},
+    data::Vector{<:T},
     sr::Int;
     winsize::Int=sr ≤ 8000 ? 256 : 512,
     winstep::Int=winsize ÷ 2,
@@ -440,10 +438,8 @@ function Frames(
     preemph::Real=0,
     dc_removal::Bool=false,
     pad_end::Bool=false,
-)
+) where {T<:AbstractFloat}
     winsize, winstep = _winparams(win, winsize, winstep)
-    x = _to_mono(audio)
-    T = eltype(x)
 
     winsize > 0 || throw(ArgumentError("winsize must be positive, got $winsize"))
     winstep > 0 || throw(ArgumentError("winstep must be positive, got $winstep"))
@@ -454,26 +450,26 @@ function Frames(
     offset = 0
     if center
         pad = winsize ÷ 2
-        x = _pad_center(x, pad, pad_mode)
+        data = _pad_center(data, pad, pad_mode)
         offset = -pad
     end
 
-    n = length(x)
+    n = length(data)
     if pad_end
         # enough zeros for the last partial frame to become a full one
         nfr = n ≤ winsize ? 1 : 1 + cld(n - winsize, winstep)
         need = (nfr - 1) * winstep + winsize
-        need > n && (x = vcat(x, zeros(T, need - n)); n = need)
+        need > n && (data = vcat(data, zeros(T, need - n)); n = need)
     end
     n ≥ winsize || throw(ArgumentError(
         "Audio length ($n samples) is shorter than window size ($winsize)"))
 
     starts = 1:winstep:(n - winsize + 1)
     window = _make_window(T, type, winsize, periodic)
-    info   = FramesSetup(sr, winsize, winstep, type, periodic, center, pad_mode,
-                         Float64(preemph), dc_removal, pad_end, offset)
+    info = FramesSetup(sr, winsize, winstep, type, periodic, center, pad_mode,
+        Float64(preemph), dc_removal, pad_end, offset)
 
-    return Frames{T}(x, starts, window, info)
+    return Frames{T}(data, starts, window, info)
 end
 
 Frames(a::AudioFile; kwargs...) = Frames(get_data(a), get_sr(a); kwargs...)
