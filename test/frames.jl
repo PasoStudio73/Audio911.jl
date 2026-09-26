@@ -7,7 +7,7 @@ test_file(filename) = joinpath(test_files_dir(), filename)
 wav_file = test_file("test.wav")
 mp3_file = test_file("test.mp3")
 
-audiofile = Audio911.load(wav_file; mono=true, sr=8000, norm=false)
+audiofile = Audio911.load(wav_file; sr=8000, norm=false)
 
 @test_nowarn Frames(audiofile)
 

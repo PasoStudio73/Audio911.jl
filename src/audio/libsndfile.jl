@@ -1,7 +1,9 @@
 # ---------------------------------------------------------------------------------------- #
 #                                    libsndfile bindings                                   #
 # ---------------------------------------------------------------------------------------- #
-# Minimal read-only bindings to libsndfile (WAV, FLAC, OGG/Vorbis).
+# Minimal bindings to libsndfile (WAV, FLAC, OGG/Vorbis). Multi-channel files
+# are averaged to mono on read; the whole Audio911 pipeline works exclusively
+# on mono Vector signals. Writing outputs mono 16-bit PCM WAV.
 const SFM_READ = Int32(0x10)
 const SFM_WRITE = Int32(0x20)
 
@@ -44,7 +46,9 @@ _sf_readf(ptr, dest::Matrix{Float32}, n) = ccall(
 _sf_readf(ptr, dest::Matrix{Float64}, n) = ccall(
     (:sf_readf_double, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float64}, Int), ptr, dest, n)
 
-# read a whole file as (frames × channels) in T; samples are scaled to [-1, 1)
+# read a whole file as a mono Vector{T}; samples are scaled to [-1, 1).
+# Multi-channel files are averaged to mono (see `to_mono`): the whole Audio911
+# analysing pipeline is intended to work exclusively on mono signals.
 function _read_sndfile(::Type{T}, path::String) where {T<:AudioData}
     info = SF_INFO()
     ptr  = _sf_open(path, info)
@@ -58,9 +62,7 @@ function _read_sndfile(::Type{T}, path::String) where {T<:AudioData}
         @inbounds for c in 1:nch, i in 1:got
             data[i, c] = buf[c, i]
         end
-        # after this conversion we continue ONLY with mono files
-        # the whole Audio911 analysing pipeline is intended to work
-        # exclusively on mono signals
+        # mono mixdown: average channels, then continue with a Vector
         size(data, 2) > 1 && (data = to_mono(data))
         return vec(data), Int(info.samplerate)
     finally
@@ -69,11 +71,23 @@ function _read_sndfile(::Type{T}, path::String) where {T<:AudioData}
 end
 
 _sf_writef(ptr, src::Vector{Float32}) = ccall(
-    (:sf_writef_float, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float32}, Int), ptr, src, length(src))
+    (:sf_writef_float, libsndfile),
+    Int,
+    (Ptr{Cvoid}, Ptr{Float32}, Int),
+    ptr,
+    src,
+    length(src)
+)
 _sf_writef(ptr, src::Vector{Float64}) = ccall(
-    (:sf_writef_double, libsndfile), Int, (Ptr{Cvoid}, Ptr{Float64}, Int), ptr, src, length(src))
+    (:sf_writef_double, libsndfile),
+    Int,
+    (Ptr{Cvoid}, Ptr{Float64}, Int),
+    ptr,
+    src,
+    length(src)
+)
 
-# write a (frames × channels) signal in [-1, 1] to a 16-bit PCM WAV file at sr Hz
+# write a mono signal (Vector of samples in [-1, 1]) to a 16-bit PCM WAV file at sr Hz
 function _write_sndfile(path::String, data::Vector{T}, sr::Int) where {T<:AbstractFloat}
     info = SF_INFO(0, sr, 1, SF_FORMAT_WAV | SF_FORMAT_PCM_16, 0, 0)
     ptr = ccall((:sf_open, libsndfile), Ptr{Cvoid},

@@ -33,7 +33,6 @@ bytes; you can also construct one directly to skip the detection.
 """
 struct File{F<:AbstractDataFormat}
     filename::String
-
     File{F}(file::String) where {F<:AbstractDataFormat} = new{F}(file)
 end
 

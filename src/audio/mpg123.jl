@@ -2,7 +2,8 @@
 #                                      mpg123 bindings                                     #
 # ---------------------------------------------------------------------------------------- #
 # Minimal bindings to libmpg123 for decoding MP3 files to 16-bit PCM.
-
+# Multi-channel files are averaged to mono after decoding; the whole Audio911
+# pipeline works exclusively on mono Vector signals.
 const MPG123_OK = Cint(0)
 const MPG123_DONE = Cint(-12)
 const MPG123_NEW_FORMAT = Cint(-11)
@@ -71,7 +72,9 @@ function _mpg123_read!(mh, buf::Vector{Int16})
     return Int(done[]) ÷ sizeof(Int16), err
 end
 
-# decode a whole MP3 as (frames × channels) in T, 16-bit samples scaled by 1/32768
+# decode a whole MP3 as a mono Vector{T}, 16-bit samples scaled by 1/32768.
+# Multi-channel files are averaged to mono (see `to_mono`): the whole Audio911
+# analysing pipeline is intended to work exclusively on mono signals.
 function _read_mp3(::Type{T}, path::String) where {T<:AudioData}
     mh = _mpg123_new()
     try
@@ -90,15 +93,14 @@ function _read_mp3(::Type{T}, path::String) where {T<:AudioData}
             err === MPG123_DONE && break
             (n === 0 && err != MPG123_NEW_FORMAT) && break
         end
+        # de-interleave into (frames × channels), scaled to [-1, 1)
         nfr  = length(acc) ÷ nch
         data = Matrix{T}(undef, nfr, nch)
         scale = T(1 / 32768)
         @inbounds for c in 1:nch, i in 1:nfr
             data[i, c] = T(acc[(i - 1) * nch + c]) * scale
         end
-        # after this conversion we continue ONLY with mono files
-        # the whole Audio911 analysing pipeline is intended to work
-        # exclusively on mono signals
+        # mono mixdown: average channels, then continue with a Vector
         size(data, 2) > 1 && (data = to_mono(data))
         return vec(data), rate
     finally

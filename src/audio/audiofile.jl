@@ -5,15 +5,16 @@
     to_mono(x::Matrix) -> Matrix
 
 Average the channels (columns) of a `frames × channels` signal into a
-`frames × 1` matrix (librosa `to_mono`).
+single-channel matrix (librosa `to_mono`). Used at load time: all other
+functions in this module work on mono `Vector` signals.
 """
 to_mono(data::Array{T}) where {T<:AbstractFloat} = mean(data, dims=2)
 
 """
-    normalize_peak(x) -> Array
+    normalize_peak(x::Vector) -> Vector
 
-Scale a signal so that its largest absolute sample is 1 (`x ./ maximum(abs, x)`).
-A silent signal is returned unchanged.
+Scale a mono signal so that its largest absolute sample is 1
+(`x ./ maximum(abs, x)`). A silent signal is returned unchanged.
 """
 function normalize_peak(data::Vector{T}) where {T<:AbstractFloat}
     m = maximum(abs, data; init=zero(T))
@@ -21,11 +22,10 @@ function normalize_peak(data::Vector{T}) where {T<:AbstractFloat}
 end
 
 """
-    resample(x, sr, new_sr; method=:polyphase, quality=:best, nzeros=nothing,
-             rolloff=nothing, window=kaiser, beta=nothing, scale=false) -> Array
+    resample(x::Vector, sr, new_sr; method=:polyphase, quality=:best, nzeros=nothing,
+             rolloff=nothing, window=kaiser, beta=nothing, scale=false) -> Vector
 
-Resample a `frames × channels` signal from `sr` to `new_sr` Hz. The element
-type is kept.
+Resample a mono signal from `sr` to `new_sr` Hz. The element type is kept.
 
 - `method=:polyphase`: polyphase FIR with the rational ratio `new_sr // sr`
   (DSP.jl).
@@ -67,16 +67,16 @@ end
 """
     AudioFile{T} <: AbstractAudioFile
 
-An audio signal with its sample rate, as loaded by [`load`](@ref) or wrapped
-from an in-memory array with
-[`AudioFile(x, sr)`](@ref AudioFile(::AbstractVecOrMat, ::Int)).
+A mono audio signal with its sample rate, as loaded by [`load`](@ref) or
+wrapped from an in-memory array with
+[`AudioFile(x, sr)`](@ref AudioFile(::AbstractVector, ::Int)).
 
-The samples are stored as a `frames × channels` matrix of `T`
-(`Float32` or `Float64`); a mono signal is `frames × 1`.
+The samples are stored as a `Vector` of `T` (`Float32` or `Float64`);
+multi-channel sources are averaged to mono at load time.
 
 Accessors: [`get_data`](@ref), [`get_sr`](@ref), [`get_origin_sr`](@ref),
-[`get_nchannels`](@ref), [`is_norm`](@ref), [`get_path`](@ref),
-[`get_duration`](@ref), `length`, `eltype`.
+[`is_norm`](@ref), [`get_path`](@ref), [`get_duration`](@ref),
+`length`, `eltype`.
 """
 struct AudioFile{T<:AudioData} <: AbstractAudioFile
     data::Vector{T}
@@ -87,16 +87,15 @@ struct AudioFile{T<:AudioData} <: AbstractAudioFile
 end
 
 """
-    AudioFile(x::AbstractVecOrMat, sr::Int; mono=true, norm=false, new_sr=nothing,
+    AudioFile(x::AbstractVector, sr::Int; norm=false, new_sr=0,
               format=eltype(x)) -> AudioFile
 
-Wrap an in-memory signal (a vector, or a `frames × channels` matrix) sampled
-at `sr` Hz. This is the entry point for audio held in matrices or data-frame
-columns: wrap each column with its sample rate and feed it to the pipeline.
+Wrap an in-memory mono signal (a vector of samples) sampled at `sr` Hz.
+This is the entry point for audio held in arrays or data-frame columns:
+wrap each column with its sample rate and feed it to the pipeline.
 
-- `mono`: average the channels
 - `norm`: peak-normalise to 1
-- `new_sr`: resample to this rate
+- `new_sr`: resample to this rate (`0` keeps `sr`)
 - `format`: `Float32` or `Float64` (integers default to `Float32`)
 """
 function AudioFile(
@@ -123,9 +122,9 @@ Base.eltype(::AudioFile{T}) where T = T
 Base.length(f::AudioFile) = length(f.data)
 
 """
-    get_data(a::AudioFile) -> Matrix
+    get_data(a::AudioFile) -> Vector
 
-The samples, `frames × channels`.
+The mono samples.
 """
 @inline get_data(a::AudioFile) = a.data
 
@@ -185,28 +184,28 @@ _read_audio(::Type{T}, f::File{Mp3}) where T = _read_mp3(T, filename(f))
 _read_audio(::Type{T}, f::File{S}) where {T,S} = _read_sndfile(T, filename(f))
 
 """
-    load(path::String; sr=nothing, mono=true, norm=false, format=Float32) -> AudioFile
+    load(path::String; sr=0, norm=false, format=Float32) -> AudioFile
     load(file::File; kwargs...) -> AudioFile
 
-Load a WAV, FLAC, OGG (Vorbis) or MP3 file. The format is taken from the
-extension and verified against the file's first bytes; WAV, FLAC and OGG are
-decoded with libsndfile, MP3 with mpg123 (16-bit PCM scaled by `1/32768`,
-matching MATLAB's `audioread`).
+Load a WAV, FLAC, OGG (Vorbis) or MP3 file as a mono signal (multi-channel
+files are averaged to mono). The format is taken from the extension and
+verified against the file's first bytes; WAV, FLAC and OGG are decoded with
+libsndfile, MP3 with mpg123 (16-bit PCM scaled by `1/32768`, matching
+MATLAB's `audioread`).
 
 # Keyword Arguments
-- `sr::Union{Nothing,Int}=nothing`: resample to this rate (`nothing` keeps the file's rate)
-- `mono::Bool=true`: average the channels
+- `sr::Int=0`: resample to this rate (`0` keeps the file's rate)
 - `norm::Bool=false`: peak-normalise the samples to 1
 - `format::Type=Float32`: element type, `Float32` or `Float64`
 
-Processing order: format conversion, mono, resampling, normalisation.
+Processing order: format conversion, mono mixdown, resampling, normalisation.
 
 # Examples
 ```julia
 audio = load("speech.wav")                                # Float32, original rate
 audio = load("speech.wav"; sr=16000, format=Float64)      # resampled, Float64
-audio = load("music.mp3"; mono=false, norm=true)          # keep the channels
-get_data(audio), get_sr(audio), get_nchannels(audio)
+audio = load("music.mp3"; norm=true)                      # peak-normalised
+get_data(audio), get_sr(audio)
 ```
 """
 function load(
@@ -230,11 +229,11 @@ end
 #                                           save                                           #
 # ---------------------------------------------------------------------------------------- #
 """
-    save(path::String, x::AbstractVecOrMat, sr::Int)
+    save(path::String, x::AbstractVector, sr::Int)
     save(path::String, a::AudioFile)
 
-Write a signal to a WAV file with libsndfile. `x` is a vector or a
-`frames × channels` matrix with samples in `[-1, 1]`.
+Write a mono signal to a WAV file with libsndfile. `x` is a vector of
+samples in `[-1, 1]`.
 
 # Examples
 ```julia
