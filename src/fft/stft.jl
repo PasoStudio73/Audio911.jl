@@ -17,7 +17,7 @@ end
 #                                       stft struct                                        #
 # ---------------------------------------------------------------------------------------- #
 """
-    Stft{T} <: AbstractSpectrogram
+    Stft{T} <: AbstractSpectrogram{T}
 
 Short-time Fourier transform of a [`Frames`](@ref) object: a one-sided
 `power` or `magnitude` spectrogram stored as `bins × frames`, its frequency
