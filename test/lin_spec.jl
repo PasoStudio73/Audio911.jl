@@ -78,3 +78,6 @@ stft = Stft(frames; spectrum=power)
 lin_spec = LinSpec(stft; freqrange=(97,1243), win_norm=false)
 
 @test isapprox(get_data(lin_spec), mat_lin_spec)
+
+@btime LinSpec(stft; freqrange=(100,1000), win_norm=true);
+# 2.692 μs (9 allocations: 21.54 KiB)

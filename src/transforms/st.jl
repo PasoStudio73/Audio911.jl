@@ -169,7 +169,7 @@ object: `bins × frames`, power or magnitude, on the FFT grid
 `min_index:max_index` of the whole signal. Implements the front-end
 interface. See [`St(frames; kwargs...)`](@ref St(::Frames)).
 """
-struct St{T<:AbstractFloat} <: AbstractSpectrogram
+struct St{T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}
@@ -185,7 +185,7 @@ Base.show(io::IO, s::St{T}) where T =
 Fast S-transform pooled on the grid of a [`Frames`](@ref) object; same
 layout as [`St`](@ref). See [`Fst(frames; kwargs...)`](@ref Fst(::Frames)).
 """
-struct Fst{T<:AbstractFloat} <: AbstractSpectrogram
+struct Fst{T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}

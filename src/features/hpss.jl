@@ -16,7 +16,7 @@ component, a gated or PCEN-compressed version). It implements the full
 front-end interface, so it can feed filterbanks, cepstra and descriptors
 exactly like the spectrogram it came from.
 """
-struct DerivedSpec{F,T<:AbstractFloat} <: AbstractSpectrogram
+struct DerivedSpec{F,T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     parent :: F
     info   :: DerivedSetup

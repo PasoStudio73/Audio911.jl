@@ -2,10 +2,10 @@
 #                                    info                                      #
 # ---------------------------------------------------------------------------- #
 struct LinSpecSetup <: AbstractSetup
-    sr            :: Int64
-    freqrange     :: FreqRange
-    spectrum_type :: Base.Callable
-    win_norm      :: Bool
+    sr::Int
+    freqrange::FreqRange
+    spectrum_type::Base.Callable
+    win_norm::Bool
 end
 
 # ---------------------------------------------------------------------------- #
@@ -20,11 +20,11 @@ one-sided spectrum and optionally window-normalised (MATLAB's
 
 Build one with [`LinSpec(spec; freqrange, win_norm)`](@ref LinSpec(::AbstractSpectrogram)).
 """
-struct LinSpec{F,T} <: AbstractSpectrogram
-    spec   :: Matrix{T}
-    freq   :: Vector{T}
-    parent :: F
-    info   :: LinSpecSetup
+struct LinSpec{F,T<:AbstractFloat} <: AbstractSpectrogram{T}
+    spec::Matrix{T}
+    freq::Vector{T}
+    parent::F
+    info::LinSpecSetup
 end
 
 # ---------------------------------------------------------------------------- #
@@ -37,20 +37,20 @@ Base.eltype(::LinSpec{F,T}) where {F,T} = T
 
 The spectrogram transposed to `frames × bins` (MATLAB orientation).
 """
-get_data(s::LinSpec)  = s.spec'
-get_spec(s::LinSpec)  = s.spec
+get_data(s::LinSpec) = s.spec'
+get_spec(s::LinSpec) = s.spec
 
 """
     get_freq(s::LinSpec) -> Vector
 
 Bin frequencies in Hz.
 """
-get_freq(s::LinSpec)  = s.freq
+get_freq(s::LinSpec) = s.freq
 get_setup(s::LinSpec) = s.info
-get_sr(s::LinSpec)    = s.info.sr
-get_spectrum(s::LinSpec)  = s.info.spectrum_type
+get_sr(s::LinSpec) = s.info.sr
+get_spectrum(s::LinSpec) = s.info.spectrum_type
 get_freqrange(s::LinSpec) = s.info.freqrange
-get_parent(s::LinSpec)    = s.parent
+get_parent(s::LinSpec) = s.parent
 
 # ---------------------------------------------------------------------------- #
 #                                     show                                     #
@@ -72,7 +72,8 @@ function Base.show(io::IO, ::MIME"text/plain", s::LinSpec{F,T}) where {F,T}
     println(io, "    Frequency bins:  $nfreqs")
     println(io, "  Configuration:")
     println(io, "    Sample rate:        $(s.info.sr) Hz")
-    println(io, "    Frequency range:    $(round(freq_range[1], digits=1)) - $(round(freq_range[2], digits=1)) Hz")
+    println(io, "    Frequency range:    $(round(freq_range[1], digits=1)) - " *
+        "$(round(freq_range[2], digits=1)) Hz")
     println(io, "    Spectrum type:      $(s.info.spectrum_type)")
     print(io,   "    Window normalized:  $(s.info.win_norm)")
 end
@@ -105,13 +106,12 @@ get_freq(linspec)   # bin frequencies
 ```
 """
 function LinSpec(
-    s         :: AbstractSpectrogram;
-    freqrange :: FreqRange=(0, get_sr(s) >> 1),
-    win_norm  :: Bool=false
-)
-    T    = eltype(s)
-    sr   = get_sr(s)
-    idx  = _freq_indices(s, freqrange)
+    s::AbstractSpectrogram{T};
+    freqrange::FreqRange=(0, get_sr(s) >> 1),
+    win_norm::Bool=false
+) where {T<:AbstractFloat}
+    sr = get_sr(s)
+    idx = _freq_indices(s, freqrange)
     freq = Vector{T}(get_freq(s)[idx])
     spec = Matrix{T}(view(get_spec(s), idx, :))
 
@@ -120,7 +120,7 @@ function LinSpec(
     tol = 8 * eps(T) * nyq
     @inbounds for (k, f) in enumerate(freq)
         g = (f > tol && f < nyq - tol) ? 2factor : factor
-        g == one(T) && continue
+        g === one(T) && continue
         @views spec[k, :] .*= g
     end
 

@@ -41,7 +41,7 @@ the complex coefficients.
 Build one with [`Cqt(frames; kwargs...)`](@ref Cqt(::Frames)) or
 [`Cqt(audio; kwargs...)`](@ref Cqt(::AudioFile)).
 """
-struct Cqt{T<:AbstractFloat} <: AbstractSpectrogram
+struct Cqt{T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}

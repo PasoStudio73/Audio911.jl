@@ -219,7 +219,7 @@ coefficient is held over the samples it covers and its power (or
 magnitude) is averaged over each frame, weighted by the frame window. It
 implements the front-end interface.
 """
-struct DiscreteWavelet{T<:AbstractFloat} <: AbstractSpectrogram
+struct DiscreteWavelet{T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}

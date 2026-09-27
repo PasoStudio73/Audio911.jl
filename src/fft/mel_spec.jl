@@ -31,7 +31,7 @@ Mel spectrogram: a front end multiplied by a triangular mel filterbank
 Build one with [`MelSpec(spec; kwargs...)`](@ref MelSpec(::AbstractSpectrogram))
 or [`MelSpec(spec, fbank; win_norm)`](@ref MelSpec(::AbstractSpectrogram, ::AbstractFBank)).
 """
-struct MelSpec{F,B,T} <: AbstractSpectrogram
+struct MelSpec{F,B,T} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     fbank  :: B
     parent :: F
@@ -166,7 +166,7 @@ end
 Bark spectrogram (MATLAB's `barkSpectrum`): a [`MelSpec`](@ref) whose
 filterbank is designed on the bark scale.
 """
-struct BarkSpec{F,B,T} <: AbstractSpectrogram
+struct BarkSpec{F,B,T} <: AbstractSpectrogram{T}
     mel :: MelSpec{F,B,T}
 end
 
@@ -232,7 +232,7 @@ end
 ERB spectrogram (MATLAB's `erbSpectrum`): a front end multiplied by a
 gammatone filterbank designed with [`gammatone_fbank`](@ref).
 """
-struct ErbSpec{F,B,T} <: AbstractSpectrogram
+struct ErbSpec{F,B,T} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     fbank  :: B
     parent :: F
@@ -253,16 +253,16 @@ gtcc = Gtcc(erb; ncoeffs=13)
 ```
 """
 function ErbSpec(
-    s        :: AbstractSpectrogram,
+    s        :: AbstractSpectrogram{T},
     fbank    :: AbstractFBank;
     win_norm :: Bool=false
-)
+) where T
     spec = _apply_fbank(s, fbank, win_norm)
     info = ErbSpecSetup(get_sr(s), win_norm)
     return ErbSpec{typeof(s),typeof(fbank),eltype(s)}(spec, fbank, s, info)
 end
 
-function ErbSpec(s::AbstractSpectrogram; win_norm::Bool=true, kwargs...)
+function ErbSpec(s::AbstractSpectrogram{T}; win_norm::Bool=true, kwargs...) where T
     fbank = gammatone_fbank(get_sr(s); sfreq=get_freq(s), kwargs...)
     ErbSpec(s, fbank; win_norm)
 end

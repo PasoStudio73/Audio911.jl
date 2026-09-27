@@ -174,7 +174,7 @@ front-end interface as [`Stft`](@ref) (`get_spec`, `get_freq`, `get_sr`,
 Build one with [`Cwt(frames; kwargs...)`](@ref Cwt(::Frames)) or
 [`Cwt(audio; kwargs...)`](@ref Cwt(::AudioFile)).
 """
-struct Cwt{T<:AbstractFloat} <: AbstractSpectrogram
+struct Cwt{T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}

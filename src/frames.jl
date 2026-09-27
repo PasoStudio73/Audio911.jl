@@ -364,7 +364,8 @@ function _pad_center(x::Vector{T}, pad::Int, mode::Symbol) where T
         fill!(view(y, 1:pad), zero(T))
         fill!(view(y, n+pad+1:n+2pad), zero(T))
     elseif mode == :reflect
-        pad < n || throw(ArgumentError("reflect padding needs a signal longer than $pad samples"))
+        pad < n ||
+            throw(ArgumentError("reflect padding needs a signal longer than $pad samples"))
         @inbounds for i in 1:pad
             y[pad + 1 - i] = x[i + 1]
             y[n + pad + i] = x[n - i]

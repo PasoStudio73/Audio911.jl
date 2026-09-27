@@ -107,7 +107,7 @@ end
 Chromagram, `nchroma × frames`. `get_freq` returns the pitch-class index
 `0:nchroma-1` (0 = C when `base_c`).
 """
-struct Chroma{F,B,T<:AbstractFloat} <: AbstractSpectrogram
+struct Chroma{F,B,T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     fbank  :: B
     parent :: F
@@ -146,8 +146,11 @@ projected on a [`chroma_fbank`](@ref) and every frame is normalised by its
 those of `chroma_fbank`. librosa applies this to the power spectrum; pass a
 `power` front end to match it.
 """
-function Chroma(s::AbstractSpectrogram, fbank::ChromaFBank; norm::Maybe{Real}=Inf)
-    T = eltype(s)
+function Chroma(
+    s::AbstractSpectrogram{T},
+    fbank::ChromaFBank;
+    norm::Maybe{Real}=Inf
+) where T
     size(get_data(fbank), 2) == get_nbins(s) || throw(DimensionMismatch(
         "chroma filterbank has $(size(get_data(fbank), 2)) bins, the spectrogram $(get_nbins(s))"))
     fb = eltype(fbank) === T ? get_data(fbank) : Matrix{T}(get_data(fbank))
@@ -171,7 +174,7 @@ end
 Tonal centroid features (Harte, Sandler & Gasser 2006; librosa `tonnetz`),
 `6 × frames`: fifths (x, y), minor thirds (x, y), major thirds (x, y).
 """
-struct Tonnetz{F,T<:AbstractFloat} <: AbstractSpectrogram
+struct Tonnetz{F,T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     parent :: F
     info   :: TonnetzSetup
@@ -230,7 +233,7 @@ end
 Octave-based spectral contrast (Jiang et al. 2002; librosa
 `spectral_contrast`), `(nbands + 1) × frames`.
 """
-struct SpectralContrast{F,T<:AbstractFloat} <: AbstractSpectrogram
+struct SpectralContrast{F,T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     parent :: F
     info   :: SpectralContrastSetup
@@ -306,7 +309,7 @@ Coefficients of a polynomial fitted to every frame of a spectrogram against
 frequency (librosa `poly_features`), `(order + 1) × frames`, highest degree
 first.
 """
-struct PolyFeatures{F,T<:AbstractFloat} <: AbstractSpectrogram
+struct PolyFeatures{F,T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     parent :: F
     info   :: PolySetup

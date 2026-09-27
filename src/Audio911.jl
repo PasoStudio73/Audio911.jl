@@ -61,7 +61,7 @@ with a frequency axis. Front ends (`Stft`, `Cwt`) and filterbank outputs
 (`LinSpec`, `MelSpec`, `BarkSpec`, `ErbSpec`) are subtypes. See the
 [pipeline design](@ref design) for the interface a subtype must implement.
 """
-abstract type AbstractSpectrogram <: AbstractAudioSpectrum end
+abstract type AbstractSpectrogram{T<:AbstractFloat} <: AbstractAudioSpectrum end
 
 """
     AbstractCepstrum <: AbstractAudioSpectrum

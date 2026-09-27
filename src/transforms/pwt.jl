@@ -68,7 +68,7 @@ Pseudo wavelet transform of a signal pooled on the time grid of a
 magnitude, on the frequency grid of the filterbank. Implements the front-end
 interface. See [`Pwt(frames; kwargs...)`](@ref Pwt(::Frames)).
 """
-struct Pwt{T<:AbstractFloat} <: AbstractSpectrogram
+struct Pwt{T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec   :: Matrix{T}
     freq   :: Vector{T}
     frames :: Frames{T}

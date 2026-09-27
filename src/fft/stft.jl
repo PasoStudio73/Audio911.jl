@@ -1,6 +1,6 @@
-# ---------------------------------------------------------------------------- #
-#                                    info                                      #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                          info                                            #
+# ---------------------------------------------------------------------------------------- #
 struct StftSetup{T<:AbstractFloat} <: AbstractSetup
     sr::Int
     nfft::Int
@@ -13,9 +13,9 @@ struct StftSetup{T<:AbstractFloat} <: AbstractSetup
     scale::T
 end
 
-# ---------------------------------------------------------------------------- #
-#                                 stft struct                                  #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                       stft struct                                        #
+# ---------------------------------------------------------------------------------------- #
 """
     Stft{T} <: AbstractSpectrogram
 
@@ -28,18 +28,19 @@ hop). It is the default time-frequency front end of the pipeline; see
 Build one with [`Stft(frames; nfft, spectrum)`](@ref Stft(::Frames)) or
 [`Stft(audio; kwargs...)`](@ref Stft(::AudioFile)).
 """
-struct Stft{T<:AbstractFloat} <: AbstractSpectrogram
+struct Stft{T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec::Matrix{T}
     freq::StepRangeLen{T}
     frames::Frames{T}
     info::StftSetup{T}
     cplx::Maybe{Matrix{Complex{T}}}
 end
-Stft{T}(spec, freq, frames, info) where {T<:AbstractFloat} = Stft{T}(spec, freq, frames, info, nothing)
+Stft{T}(spec, freq, frames, info) where {T<:AbstractFloat} =
+    Stft{T}(spec, freq, frames, info, nothing)
 
-#------------------------------------------------------------------------------#
-#                                   methods                                    #
-#------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------- #
+#                                         methods                                          #
+# ---------------------------------------------------------------------------------------- #
 Base.eltype(::Stft{T}) where T = T
 
 """
@@ -55,7 +56,9 @@ The spectrogram as stored: `bins × frames` (same as [`get_spec`](@ref)).
 
 Bin centre frequencies in Hz, `0:sr/nfft:sr/2`.
 """
-@inline get_freq(s::Stft) = s.freq
+@inline function get_freq(s::Stft{T})::StepRangeLen{T} where T
+    s.freq
+end
 
 """
     get_setup(s::Stft) -> StftSetup
@@ -86,9 +89,9 @@ FFT size. The one-sided spectrum has `nfft ÷ 2 + 1` bins.
 @inline get_spectrum(s::Stft) = s.info.spectrum
 
 @inline get_winsize(s::Stft) = s.info.winsize
-@inline get_step(s::Stft)    = s.info.winstep
+@inline get_step(s::Stft) = s.info.winstep
 @inline get_overlap(s::Stft) = s.info.overlap
-@inline get_offset(s::Stft)  = s.info.offset
+@inline get_offset(s::Stft) = s.info.offset
 
 """
     get_window(s::Stft) -> Vector
@@ -112,16 +115,18 @@ function _freq_indices(s::Stft, freqrange::FreqRange)
     bin_low = cld(get_low(freqrange) * nfft, sr) + 1
     bin_high = fld(get_hi(freqrange) * nfft, sr) + 1
     bin_high = min(bin_high, get_nbins(s))
-    bin_low ≤ bin_high || throw(ArgumentError("No frequency bins inside freqrange = $freqrange."))
+    bin_low ≤ bin_high ||
+        throw(ArgumentError("No frequency bins inside freqrange = $freqrange."))
     return bin_low:bin_high
 end
 
-# ---------------------------------------------------------------------------- #
-#                                     show                                     #
-# ---------------------------------------------------------------------------- #
+# ---------------------------------------------------------------------------------------- #
+#                                           show                                           #
+# ---------------------------------------------------------------------------------------- #
 function Base.show(io::IO, s::Stft{T}) where T
     nfreqs, nframes = size(get_data(s))
-    print(io, "Stft{$T}($nframes frames × $nfreqs bins, sr=$(s.info.sr) Hz, spectrum=$(s.info.spectrum))")
+    print(io, "Stft{$T}($nframes frames × $nfreqs bins, sr=$(s.info.sr) Hz, " *
+        "spectrum=$(s.info.spectrum))")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", s::Stft{T}) where T
@@ -137,9 +142,9 @@ function Base.show(io::IO, ::MIME"text/plain", s::Stft{T}) where T
     print(io,   "    Spectrum type:   $(s.info.spectrum)")
 end
 
-#------------------------------------------------------------------------------#
-#                           spectrum normalizations                            #
-#------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------- #
+#                                 spectrum normalizations                                  #
+# ---------------------------------------------------------------------------------------- #
 """
     power(f)
 
@@ -154,9 +159,9 @@ Magnitude spectrum of complex FFT values: `|X(f)|`. Works on scalars and arrays.
 """
 magnitude(f) = abs.(f)
 
-#------------------------------------------------------------------------------#
-#                                  utilities                                   #
-#------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------- #
+#                                        utilities                                         #
+# ---------------------------------------------------------------------------------------- #
 _onesided_length(nfft::Int) = nfft ÷ 2 + 1
 
 # partition 1:n into at most nthreads contiguous chunks
@@ -194,9 +199,9 @@ function _stft!(spec::AbstractMatrix, frames::Frames{T}, nfft::Int, spectrum::Ba
     return spec
 end
 
-#------------------------------------------------------------------------------#
-#                                   get stft                                   #
-#------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------- #
+#                                         get stft                                         #
+# ---------------------------------------------------------------------------------------- #
 """
     Stft(frames::Frames; nfft=get_winsize(frames), spectrum=power) -> Stft
 

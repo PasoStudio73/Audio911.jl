@@ -136,7 +136,7 @@ chosen scale. The cells (one complex series per band at the band's own time
 resolution) are kept and returned by [`get_cells`](@ref). Implements the
 front-end interface. See [`Nsgt(frames; kwargs...)`](@ref Nsgt(::Frames)).
 """
-struct Nsgt{T<:AbstractFloat} <: AbstractSpectrogram
+struct Nsgt{T<:AbstractFloat} <: AbstractSpectrogram{T}
     spec    :: Matrix{T}
     freq    :: Vector{T}
     frames  :: Frames{T}
