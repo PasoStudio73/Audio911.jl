@@ -318,14 +318,14 @@ end
 
 """
     Cqt(audio::AudioFile; kwargs...) -> Cqt
-    Cqt(x::AbstractVecOrMat, sr::Int; kwargs...) -> Cqt
+    Cqt(x::Vector, sr::Int; kwargs...) -> Cqt
 
 Frame the signal and compute its constant-Q transform. Framing keywords
 (`winsize`, `winstep`, `center`, ...) go to [`Frames`](@ref), the rest to
 [`Cqt(::Frames)`](@ref).
 """
 function Cqt(
-    audio    :: AbstractVecOrMat{<:Real},
+    audio    :: Vector{<:AbstractFloat},
     sr       :: Int64;
     winsize  :: Int64=sr ≤ 8000 ? 256 : 512,
     winstep  :: Int64=winsize ÷ 2,

@@ -94,10 +94,10 @@ end
 # ---------------------------------------------------------------------------------------- #
 @testset "in-memory AudioFile" begin
     x = rand(Float32, 8000, 2) .- 0.5f0
-    data = Audio911._to_mono(x)
+    data = vec(Audio911.to_mono(x))
     a = AudioFile(data, 8000)
     @test length(a) == 8000 && get_sr(a) == 8000
-    @test get_data(a) ≈ sum(x, dims=2) ./ 2
+    @test get_data(a) ≈ vec(sum(x, dims=2) ./ 2)
     @test get_path(a) == ""
     b = AudioFile(Float64.(data), 8000; norm=true, new_sr=4000)
     @test get_sr(b) == 4000 && get_origin_sr(b) == 8000

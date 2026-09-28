@@ -159,7 +159,7 @@ function get_sr end
 
 export Wav, Flac, Ogg, Mp3, File, AudioFile, load, save
 export filename, file_extension, formatname, detect_format
-export get_origin_sr, get_nchannels, is_norm, get_path
+export get_origin_sr, is_norm, get_path
 export to_mono, normalize_peak
 include("audio/formats.jl")
 include("audio/libsndfile.jl")

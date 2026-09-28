@@ -251,7 +251,7 @@ get_signal(f::Frames) = f.signal
 Write frame `i` (raw, after optional DC removal and pre-emphasis, before
 windowing) into `buf`, which must have length `get_size(f)`.
 """
-@inline function frame!(buf::SubArray{T}, f::Frames{T}, i::Int) where T
+@inline function frame!(buf::AbstractVector{T}, f::Frames{T}, i::Int) where T
     n = f.info.winsize
     s = f.starts[i]
     x = f.signal
@@ -384,10 +384,10 @@ end
 # ---------------------------------------------------------------------------------------- #
 """
     Frames(audio::AudioFile; kwargs...) -> Frames
-    Frames(x::AbstractVecOrMat, sr::Int; kwargs...) -> Frames
+    Frames(x::Vector, sr::Int; kwargs...) -> Frames
 
 Cut a mono signal into (overlapping) frames and attach an analysis window.
-A multi-channel matrix is averaged to mono first.
+Multi-channel audio is averaged to mono when it is loaded ([`load`](@ref)).
 
 # Keyword Arguments
 - `winsize::Int`: frame length in samples (default 256 for `sr ≤ 8000`, else 512)

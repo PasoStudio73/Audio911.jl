@@ -17,7 +17,7 @@ end
 #                                       stft struct                                        #
 # ---------------------------------------------------------------------------------------- #
 """
-    Stft{T} <: AbstractSpectrogram{T}
+    Stft{T, R} <: AbstractSpectrogram{T}
 
 Short-time Fourier transform of a [`Frames`](@ref) object: a one-sided
 `power` or `magnitude` spectrogram stored as `bins × frames`, its frequency
@@ -27,16 +27,20 @@ hop). It is the default time-frequency front end of the pipeline; see
 
 Build one with [`Stft(frames; nfft, spectrum)`](@ref Stft(::Frames)) or
 [`Stft(audio; kwargs...)`](@ref Stft(::AudioFile)).
+
+`R` is the concrete type of the frequency range, which depends on `T`
+(`Float64` ranges keep a twice-precision step), so that `get_freq` is
+type-stable; write `Stft{T}` to match any of them.
 """
-struct Stft{T<:AbstractFloat} <: AbstractSpectrogram{T}
+struct Stft{T<:AbstractFloat, R<:StepRangeLen{T}} <: AbstractSpectrogram{T}
     spec::Matrix{T}
-    freq::StepRangeLen{T}
+    freq::R
     frames::Frames{T}
     info::StftSetup{T}
     cplx::Maybe{Matrix{Complex{T}}}
 end
-Stft{T}(spec, freq, frames, info) where {T<:AbstractFloat} =
-    Stft{T}(spec, freq, frames, info, nothing)
+Stft{T}(spec, freq::R, frames, info, cplx=nothing) where {T<:AbstractFloat, R<:StepRangeLen{T}} =
+    Stft{T, R}(spec, freq, frames, info, cplx)
 
 # ---------------------------------------------------------------------------------------- #
 #                                         methods                                          #
@@ -56,9 +60,7 @@ The spectrogram as stored: `bins × frames` (same as [`get_spec`](@ref)).
 
 Bin centre frequencies in Hz, `0:sr/nfft:sr/2`.
 """
-@inline function get_freq(s::Stft{T})::StepRangeLen{T} where T
-    s.freq
-end
+@inline get_freq(s::Stft) = s.freq
 
 """
     get_setup(s::Stft) -> StftSetup
@@ -288,14 +290,15 @@ recomputed from the frames. The `scale` keyword of `Stft` applies to the
 real spectrogram only.
 """
 function get_complex(s::Stft{T}) where T
-    isnothing(s.cplx) || return s.cplx
+    c = s.cplx                   # a local binding lets inference narrow the Union
+    isnothing(c) || return c
     C = Matrix{Complex{T}}(undef, get_nbins(s), get_nframes(s))
     return _stft!(C, s.frames, get_nfft(s), identity)
 end
 
 """
     Stft(audio::AudioFile; kwargs...) -> Stft
-    Stft(x::AbstractVecOrMat, sr::Int; kwargs...) -> Stft
+    Stft(x::Vector, sr::Int; kwargs...) -> Stft
 
 Frame the signal and compute its STFT in one call. Framing keywords
 (`winsize`, `winstep`, `type`, `periodic`, `center`, `pad_mode`, `preemph`,

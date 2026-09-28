@@ -109,7 +109,7 @@ function Pwt(frames::Frames{T}; nbands::Int=84, scale::Function=octave, style::F
     return Pwt{T}(spec, Vector{T}(freq), frames, info)
 end
 
-Pwt(audio::AbstractVecOrMat{<:Real}, sr::Int; winsize::Int=sr ≤ 8000 ? 256 : 512, winstep::Int=winsize ÷ 2,
+Pwt(audio::Vector{<:AbstractFloat}, sr::Int; winsize::Int=sr ≤ 8000 ? 256 : 512, winstep::Int=winsize ÷ 2,
     type::Base.Callable=rect, periodic::Bool=true, center::Bool=false, pad_mode::Symbol=:constant, kwargs...) =
     Pwt(Frames(audio, sr; winsize, winstep, type, periodic, center, pad_mode); kwargs...)
 Pwt(a::AudioFile; kwargs...) = Pwt(get_data(a), get_sr(a); kwargs...)

@@ -36,11 +36,11 @@ peak_hz(y, sr) = (Y = abs.(rfft(y[4097:end-4096] .* Audio911.hanning(length(y) -
         @test length(y) == length(x)
         @test isapprox(peak_hz(y, sr), 440 * 2^(n / 12); rtol=0.01)
     end
-    a = AudioFile(hcat(x, x), sr; mono=false)
+    a = AudioFile(x, sr)
     b = pitch_shift(a, 3)
-    @test get_sr(b) == sr && size(get_data(b)) == (length(x), 2)
-    @test get_data(b)[:, 1] ≈ pitch_shift(x, 3)
-    @test size(get_data(time_stretch(a, 2))) == (length(x) ÷ 2, 2)
+    @test get_sr(b) == sr && length(get_data(b)) == length(x)
+    @test get_data(b) ≈ pitch_shift(x, 3)
+    @test length(get_data(time_stretch(a, 2))) == length(x) ÷ 2
 
     # band-limited resampling keeps a tone and the element type
     y = Audio911.resample(x, sr, 8000; method=:sinc)
@@ -48,7 +48,6 @@ peak_hz(y, sr) = (Y = abs.(rfft(y[4097:end-4096] .* Audio911.hanning(length(y) -
     @test isapprox(peak_hz(y, 8000), 440; atol=2)
     y32 = Audio911.resample(Float32.(x), sr, 22050; method=:sinc, quality=:fast)
     @test eltype(y32) == Float32 && length(y32) == floor(Int, length(x) * 22050 / sr)
-    @test size(Audio911.resample(hcat(x, x), sr, 8000; method=:sinc)) == (length(x) ÷ 2, 2)
     @test Audio911.resample(x, sr, 8000; method=:sinc, scale=true) ≈ y ./ sqrt(0.5)
     @test_throws ArgumentError Audio911.resample(x, sr, 8000; method=:foo)
     @test_throws ArgumentError Audio911.resample(x, sr, 8000; quality=:best)

@@ -480,7 +480,7 @@ Sample rate stored in an audio file's header, without decoding the audio.
 """
 function get_samplerate(path::AbstractString)
     sym = detect_format(path)
-    if sym == :MP3
+    if sym == :mp3
         mh = _mpg123_new()
         try
             _mpg123_open(mh, String(path))

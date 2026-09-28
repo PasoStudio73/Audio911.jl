@@ -278,7 +278,7 @@ end
 
 for S in (:Hht, :Ewt)
     @eval begin
-        $S(audio::AbstractVecOrMat{<:Real}, sr::Int; winsize::Int=sr ≤ 8000 ? 256 : 512, winstep::Int=winsize ÷ 2,
+        $S(audio::Vector{<:AbstractFloat}, sr::Int; winsize::Int=sr ≤ 8000 ? 256 : 512, winstep::Int=winsize ÷ 2,
            type::Base.Callable=rect, periodic::Bool=true, center::Bool=false, pad_mode::Symbol=:constant, kwargs...) =
             $S(Frames(audio, sr; winsize, winstep, type, periodic, center, pad_mode); kwargs...)
         $S(a::AudioFile; kwargs...) = $S(get_data(a), get_sr(a); kwargs...)

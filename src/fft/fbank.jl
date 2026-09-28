@@ -19,7 +19,8 @@ end
     FBank{T} <: AbstractFBank
 
 A filterbank: a `nbands × nbins` weight matrix evaluated on a frequency grid,
-the centre frequency and bandwidth of every band, and the design parameters.
+that grid in Hz, the centre frequency and bandwidth of every band, and the
+design parameters.
 Built by [`auditory_fbank`](@ref) (triangular mel/bark filters) or
 [`gammatone_fbank`](@ref) (gammatone ERB filters).
 """
@@ -27,6 +28,7 @@ struct FBank{T<:AbstractFloat} <: AbstractFBank
     fbank::Matrix{T}
     freq::Vector{T}
     bw::Vector{T}
+    grid::Vector{T}
     setup::FBankSetup
 
     function FBank(
@@ -38,11 +40,16 @@ struct FBank{T<:AbstractFloat} <: AbstractFBank
         scale::Symbol,
         norm::Base.Callable,
         freqrange::FreqRange,
+        # frequency of every column; defaults to a uniform one-sided FFT grid
+        grid::AbstractVector=range(0, sr / 2; length=size(filterbank, 2)),
     ) where {T<:AbstractFloat}
+        length(grid) == size(filterbank, 2) || throw(ArgumentError(
+            "the grid has $(length(grid)) points but the filterbank $(size(filterbank, 2)) columns"))
         new{T}(
             Matrix{T}(filterbank),
             Vector{T}(filtfreq),
             Vector{T}(bw),
+            Vector{T}(grid),
             FBankSetup(sr, nbands, scale, norm, freqrange)
         )
     end
@@ -627,17 +634,19 @@ function auditory_fbank(
             _window_band!(filterbank, k, style, bins[k], bins[k + 1], bins[k + 2])
         end
         norm === none_norm || normalize!(filterbank, norm, Vector{T}(bw))
-        return FBank(filterbank, filtfreq, Vector{T}(bw), sr, nbands, nameof(scale), norm, freqrange)
+        return FBank(filterbank, filtfreq, Vector{T}(bw), sr, nbands, nameof(scale), norm, freqrange, sfreq)
     end
 
-    p = [findfirst(sfreq .> edge) for edge in band_edges]
-    isnothing(p[end]) ? p[end] = length(sfreq) : nothing
-    any(isnothing, p) && throw(ArgumentError(
-        "the frequency grid does not reach the filterbank edges; check freqrange"))
+    # p[k]: first grid bin above edge k. An inner edge at the top of the grid
+    # (a last band centred on sr/2, as linspace and logspace give for
+    # freqrange = (.., sr÷2)) has none: its rise then runs to the last bin.
+    p = [something(findfirst(sfreq .> edge), length(sfreq) + 1) for edge in band_edges]
+    p[end] = min(p[end], length(sfreq))
 
     # create triangular filters for each band
     filterbank = zeros(T, nbands, length(sfreq))
 
+    grid = collect(sfreq)
     # apply warping transformation if domain is warped
     domain == :warped && (band_edges = _warp(scale, band_edges, bins_per_octave); sfreq = _warp(scale, sfreq, bins_per_octave))
 
@@ -657,7 +666,7 @@ function auditory_fbank(
     # normalization
     norm === none_norm || normalize!(filterbank, norm, bw)
 
-    FBank(filterbank, filtfreq, bw, sr, nbands, nameof(scale), norm, freqrange)
+    FBank(filterbank, filtfreq, bw, sr, nbands, nameof(scale), norm, freqrange, grid)
 end
 
 """
@@ -840,7 +849,7 @@ function gammatone_fbank(
 
     norm === none_norm || normalize!(filterbank, norm, bw)
 
-    FBank(filterbank, filtfreq, bw, sr, nbands, :erb, norm, freqrange)
+    FBank(filterbank, filtfreq, bw, sr, nbands, :erb, norm, freqrange, sfreq)
 end
 
 """

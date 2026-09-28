@@ -22,21 +22,16 @@ end
 """
     plot(audio::AudioFile)
 
-Waveform, one series per channel, against time in seconds.
+The mono waveform against time in seconds.
 """
 @recipe function f(a::AudioFile)
     x = get_data(a)
-    t = (0:size(x, 1)-1) ./ get_sr(a)
+    t = (0:length(x)-1) ./ get_sr(a)
     xguide --> "Time (s)"
     yguide --> "Amplitude"
     title --> (isempty(get_path(a)) ? "Audio" : basename(get_path(a)))
-    legend --> (size(x, 2) > 1)
-    for c in 1:size(x, 2)
-        @series begin
-            label --> "channel $c"
-            t, x[:, c]
-        end
-    end
+    legend --> false
+    t, x
 end
 
 """
@@ -181,9 +176,8 @@ Every filter of the bank against frequency.
     yguide --> "Weight"
     legend --> false
     title --> "$(nameof(typeof(fb))): $(size(W, 1)) bands"
-    # the grid the bank was evaluated on is stored for chroma banks; auditory
-    # banks are drawn on a uniform grid of the same length
-    x = fb isa ChromaFBank ? get_freq(fb) : range(0, get_sr(fb) / 2, length=size(W, 2))
+    # both bank types store the frequency grid they were evaluated on
+    x = fb isa FBank ? fb.grid : get_freq(fb)
     for k in 1:size(W, 1)
         @series begin
             x, W[k, :]

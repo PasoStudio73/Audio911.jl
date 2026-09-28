@@ -84,8 +84,7 @@ end
 
 for f in (:time_stretch, :pitch_shift)
     @eval function $f(a::AudioFile, v::Real; kwargs...)
-        X = get_data(a)
-        Y = reduce(hcat, [$f(c, v; kwargs...) for c in eachcol(X)])
-        return AudioFile(eltype(X).(Y), get_sr(a); mono=false)
+        x = get_data(a)
+        return AudioFile(eltype(x).($f(x, v; kwargs...)), get_sr(a))
     end
 end

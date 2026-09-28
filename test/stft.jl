@@ -91,7 +91,7 @@ section("accessors")
 @code_warntype Audio911.get_energy(stft)
 @code_warntype Audio911.get_complex(stft) # recompute branch
 @code_warntype Audio911.get_complex(stft_c) # cached branch
-@code_warntype Audio911._freq_indices(stft, FreqRange(300, 3400))
+@code_warntype Audio911._freq_indices(stft, (300, 3400))
 
 # @inferred summary
 section("@inferred summary")

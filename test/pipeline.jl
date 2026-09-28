@@ -148,9 +148,9 @@ end
     @test deemphasis(y; coef=0.97, zi=x[1]) ≈ x
     @test preemphasis(x; coef=0.97, zi=0)[1] == x[1]
 
-    # multi-channel input is averaged to mono, raw vectors are accepted
-    st = Stft(hcat(x, x), 16000; winsize=512, winstep=256)
-    @test get_spec(st) ≈ get_spec(Stft(x, 16000; winsize=512, winstep=256))
+    # raw mono vectors are accepted and match the AudioFile path
+    st = Stft(x, 16000; winsize=512, winstep=256)
+    @test get_spec(st) ≈ get_spec(Stft(audio; winsize=512, winstep=256))
     @test Stft(Frames(audio; winsize=256, winstep=256)) isa Stft   # no overlap is fine
 end
 

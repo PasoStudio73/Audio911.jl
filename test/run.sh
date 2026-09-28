@@ -7,6 +7,12 @@
 #   test/run.sh docs          # build the Documenter site into docs/build
 #   test/run.sh bench         # allocation / timing profile of the pipeline
 #   test/run.sh oracle [X.py] # regenerate the audioFlux fixtures (all, or the given scripts)
+#   test/run.sh notebooks [X.jl] # run the Pluto notebooks headless and report errored cells
+#   test/run.sh pluto         # open the Pluto notebook tour in the browser
+#
+# `notebooks` and `pluto` use a Pluto install in $PLUTO_ENV
+# (default ${TMPDIR:-/tmp}/audio911-pluto-env), created on first use; the
+# notebooks themselves run in the notebooks/ environment.
 #
 # `oracle` runs the scripts in test/audioflux_sources/ with the Python of the
 # virtual environment $AF_VENV (default ${TMPDIR:-/tmp}/audio911-oracle-venv),
@@ -77,6 +83,29 @@ case "${1:-test}" in
             echo "oracle: $(basename "$script")"
             wrap "$AF_VENV/bin/python" "$script"
         done
+        ;;
+    notebooks|pluto)
+        cmd=$1; shift
+        PLUTO_ENV=${PLUTO_ENV:-${TMPDIR:-/tmp}/audio911-pluto-env}
+        if [ ! -f "$PLUTO_ENV/Manifest.toml" ]; then
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pkg; Pkg.add("Pluto")'
+        fi
+        if [ "$cmd" = pluto ]; then
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pluto; Pluto.run(notebook=joinpath(ENV["A911_ROOT"], "notebooks", "01_loading_and_frames.jl"))'
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pluto; Pluto.run(notebook=joinpath(ENV["A911_ROOT"], "notebooks", "02_stft_and_filterbanks.jl"))'
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pluto; Pluto.run(notebook=joinpath(ENV["A911_ROOT"], "notebooks", "03_cepstra.jl"))'
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pluto; Pluto.run(notebook=joinpath(ENV["A911_ROOT"], "notebooks", "04_spectral_descriptors.jl"))'
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pluto; Pluto.run(notebook=joinpath(ENV["A911_ROOT"], "notebooks", "05_time_frequency.jl"))'
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pluto; Pluto.run(notebook=joinpath(ENV["A911_ROOT"], "notebooks", "06_discrete_wavelets_and_decompositions.jl"))'
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pluto; Pluto.run(notebook=joinpath(ENV["A911_ROOT"], "notebooks", "07_music_and_rhythm.jl"))'
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pluto; Pluto.run(notebook=joinpath(ENV["A911_ROOT"], "notebooks", "08_time_domain_and_pitch.jl"))'
+            "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" -e 'using Pluto; Pluto.run(notebook=joinpath(ENV["A911_ROOT"], "notebooks", "09_signal_processing_and_classic.jl"))'
+        else
+            if [ $# -eq 0 ]; then
+                set -- "$ROOT"/notebooks/[0-9]*.jl
+            fi
+            wrap "$JULIA" "${JFLAGS[@]}" --project="$PLUTO_ENV" "$HEAP" "$ROOT/notebooks/check.jl" "$@" 2>&1 | tee "$LOG_DIR/notebooks.log"
+        fi
         ;;
     *)
         echo "unknown command: $1" >&2; exit 2

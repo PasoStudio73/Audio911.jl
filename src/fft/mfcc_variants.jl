@@ -29,7 +29,7 @@ function _binfbank(::Type{T}, sr::Int, nfft::Int, nbands::Int, freqrange::FreqRa
     sfreq = (0:nf-1) .* (T(sr) / T(nfft))
     freq  = T.(edges[2:end-1])
     bw    = T.(edges[3:end] .- edges[1:end-2])
-    return FBank(fb, freq, bw, sr, nbands, :htk, none_norm, freqrange)
+    return FBank(fb, freq, bw, sr, nbands, :htk, none_norm, freqrange, sfreq)
 end
 
 """

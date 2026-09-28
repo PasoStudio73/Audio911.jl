@@ -202,7 +202,7 @@ function Nsgt(frames::Frames{T}; nbands::Int=84, scale::Function=octave, style::
     return Nsgt{T}(spec, freq, frames, info, cells, lens)
 end
 
-Nsgt(audio::AbstractVecOrMat{<:Real}, sr::Int; winsize::Int=sr ≤ 8000 ? 256 : 512, winstep::Int=winsize ÷ 2,
+Nsgt(audio::Vector{<:AbstractFloat}, sr::Int; winsize::Int=sr ≤ 8000 ? 256 : 512, winstep::Int=winsize ÷ 2,
      type::Base.Callable=rect, periodic::Bool=true, center::Bool=false, pad_mode::Symbol=:constant, kwargs...) =
     Nsgt(Frames(audio, sr; winsize, winstep, type, periodic, center, pad_mode); kwargs...)
 Nsgt(a::AudioFile; kwargs...) = Nsgt(get_data(a), get_sr(a); kwargs...)

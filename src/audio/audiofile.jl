@@ -5,8 +5,9 @@
     to_mono(x::Matrix) -> Matrix
 
 Average the channels (columns) of a `frames × channels` signal into a
-single-channel matrix (librosa `to_mono`). Used at load time: all other
-functions in this module work on mono `Vector` signals.
+single-channel matrix (librosa `to_mono`). The loaders call it once, right
+after decoding; every other function in Audio911 works on mono `Vector`
+signals, so nothing downstream converts channels again.
 """
 to_mono(data::Array{T}) where {T<:AbstractFloat} = mean(data, dims=2)
 
@@ -87,8 +88,7 @@ struct AudioFile{T<:AbstractFloat} <: AbstractAudioFile
 end
 
 """
-    AudioFile(x::AbstractVector, sr::Int; norm=false, new_sr=0,
-              format=eltype(x)) -> AudioFile
+    AudioFile(x::Vector, sr::Int; norm=false, new_sr=0, path="") -> AudioFile
 
 Wrap an in-memory mono signal (a vector of samples) sampled at `sr` Hz.
 This is the entry point for audio held in arrays or data-frame columns:
@@ -96,7 +96,9 @@ wrap each column with its sample rate and feed it to the pipeline.
 
 - `norm`: peak-normalise to 1
 - `new_sr`: resample to this rate (`0` keeps `sr`)
-- `format`: `Float32` or `Float64` (integers default to `Float32`)
+- `path`: the file the samples came from, if any
+
+The element type of `x` (`Float32` or `Float64`) is kept.
 """
 function AudioFile(
     data::Vector{T},
@@ -161,7 +163,7 @@ Duration in seconds.
 get_duration(a::AudioFile) = length(a) / a.sr
 
 function Base.show(io::IO, a::AudioFile{T}) where T
-    print(io, "AudioFile{$T}($(length(a)) samples × $(get_nchannels(a)) ch, sr=$(a.sr) Hz)")
+    print(io, "AudioFile{$T}($(length(a)) samples, sr=$(a.sr) Hz)")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", a::AudioFile{T}) where T

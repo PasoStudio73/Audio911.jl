@@ -455,7 +455,7 @@ end
 
 """
     Cwt(audio::AudioFile; kwargs...) -> Cwt
-    Cwt(x::AbstractVecOrMat, sr::Int; kwargs...) -> Cwt
+    Cwt(x::Vector, sr::Int; kwargs...) -> Cwt
 
 Frame the signal (rectangular pooling window by default) and compute its
 scalogram. Framing keywords (`winsize`, `winstep`, `type`, `periodic`,
@@ -467,7 +467,7 @@ cwt = Cwt(audio; winsize=512, winstep=256, wavelet=morse, voices=10)
 ```
 """
 function Cwt(
-    audio    :: AbstractVecOrMat{<:Real},
+    audio    :: Vector{<:AbstractFloat},
     sr       :: Int64;
     winsize  :: Int64=sr ≤ 8000 ? 256 : 512,
     winstep  :: Int64=winsize ÷ 2,
